@@ -1,0 +1,32 @@
+.map {
+    --outline-colour: #0D340D;
+    --marked-colour: #ff0;
+    fill: var(--outline-colour);
+    fill-opacity: 0;
+}
+
+.rsm-geography {
+    stroke: var(--outline-colour);
+    transition: fill-opacity 0.25s ease-in-out;
+}
+
+.rsm-geography:hover {
+    fill-opacity: 0.5;
+}
+
+.marked {
+    fill: var(--marked-colour);
+    fill-opacity: 0.5;
+}
+
+.marked:hover {
+    fill-opacity: 1;
+    cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+    .map {
+        --outline-colour: #566ba5;
+        --marked-colour: #ff49bc;
+    }
+}

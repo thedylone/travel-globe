@@ -1,6 +1,8 @@
 import React from "react"
 import { FC } from "react"
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps"
+import historyJson from "../data/history.json"
+import "./map.css"
 
 const geoUrl =
   "https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json"
@@ -13,6 +15,7 @@ export const MapChart: FC = () => {
       width={mapWidth}
       height={mapHeight}
       projectionConfig={{ scale: 160 }}
+      className="map"
     >
       <ZoomableGroup
         translateExtent={[
@@ -26,20 +29,7 @@ export const MapChart: FC = () => {
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
-                style={{
-                  default: {
-                    fill: geo.properties.name === "Denmark" ? "#F53" : "#D6D6DA",
-                    outline: "none"
-                  },
-                  hover: {
-                    fill: "#F53",
-                    outline: "none"
-                  },
-                  pressed: {
-                    fill: "#E42",
-                    outline: "none"
-                  }
-                }} />
+                className = {geo.properties.name in historyJson ? "marked" : "" }/>
             ))
           }
         </Geographies>
