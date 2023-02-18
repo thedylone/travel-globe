@@ -1,8 +1,9 @@
 .map {
     --outline-colour: #0D340D;
-    --marked-colour: #ff0;
+    --marked-colour: #b5179e;
     fill: var(--outline-colour);
     fill-opacity: 0;
+    animation: zoom-fade 0.5s ease-in-out forwards;
 }
 
 .rsm-geography {
@@ -16,7 +17,7 @@
 
 .marked {
     fill: var(--marked-colour);
-    fill-opacity: 0.5;
+    fill-opacity: 0.7;
 }
 
 .marked:hover {
@@ -27,6 +28,17 @@
 @media (prefers-color-scheme: dark) {
     .map {
         --outline-colour: #566ba5;
-        --marked-colour: #ff49bc;
+        --marked-colour: #0baad6;
+    }
+}
+
+@keyframes zoom-fade {
+    0% {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
     }
 }

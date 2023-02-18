@@ -1,5 +1,6 @@
 .popup-content {
-    background: #272a34;
+    --popup-background: #fffcf2;
+    background: var(--popup-background);
     border: none;
     border-radius: 1rem;
     font-size: 2rem;
@@ -7,7 +8,13 @@
 }
 
 .modal {
-    background: #272a34;
+    background: var(--popup-background);
+}
+
+@media (prefers-color-scheme: dark) {
+    .popup-content {
+        --popup-background: #272a34;
+    }
 }
 
 /* animation */

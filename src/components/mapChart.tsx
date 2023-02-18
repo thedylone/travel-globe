@@ -16,7 +16,15 @@ interface IHistoryJson {
   };
 }
 
-let displayDate: string = "";
+interface ISelectedData {
+  Country: string;
+  Date: string;
+  Images: string[];
+}
+
+export let selectedData: ISelectedData = { Country: "", Date: "", Images: [] };
+// export let displayDate: string = "";
+// export let displayImages: string[] = [];
 
 const historyJson: IHistoryJson = _historyJson;
 const geoUrl =
@@ -49,7 +57,10 @@ export const MapChart: FC = () => {
                 onClick={() => {
                   if (geo.properties.name in historyJson) {
                     setOpen((o) => !o);
-                    displayDate = historyJson[geo.properties.name].Date;
+                    selectedData.Country = geo.properties.name;
+                    selectedData.Date = historyJson[geo.properties.name].Date;
+                    selectedData.Images =
+                      historyJson[geo.properties.name].Images;
                   }
                 }}
               />
@@ -57,7 +68,7 @@ export const MapChart: FC = () => {
           }
         </Geographies>
       </ZoomableGroup>
-      <ControlledPopup open={open} setOpen={setOpen} date={displayDate} />
+      <ControlledPopup open={open} setOpen={setOpen} />
     </ComposableMap>
   );
 };

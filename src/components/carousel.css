@@ -1,0 +1,8 @@
+.carousel * {
+    width: auto;
+}
+
+.carousel .slide img {
+    max-height: 40vh;
+    width: auto;
+}
