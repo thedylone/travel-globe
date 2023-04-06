@@ -9,12 +9,11 @@ const ControlledPopup: FC<{
     open: boolean;
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }> = (props) => {
-    // const closeModal = () => props.setOpen(false);
     return (
         <Popup
             open={props.open}
             closeOnDocumentClick
-            // onClose={closeModal}
+            onClose={() => props.setOpen(false)}
             modal
         >
             <div className="modal">

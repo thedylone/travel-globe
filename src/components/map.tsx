@@ -1,76 +1,51 @@
-import React, { FC } from "react";
-import Globe from "react-globe.gl";
-import {
-    ILocationData,
-    ITripsJson,
-    selectedData,
-    selectedImages,
-} from "./data";
-import _tripsJson from "../data/trips.json";
-
-const tripsJson: ITripsJson = _tripsJson;
-const locationsData: ILocationData[] = [];
-const arcsData: Object[] = [];
-
-const randomHsl = () => `hsla(${Math.random() * 360}, 100%, 50%, 1)`;
-
-const importJson = (tripsJson: ITripsJson) => {
-    console.log("import");
-    for (let i = 0; i < Object.keys(tripsJson).length; i++) {
-        const trip = tripsJson[i];
-        const color = [randomHsl(), randomHsl()];
-        const len = trip.locations.length;
-        for (let j = 0; j < len; j++) {
-            const start = trip.locations[j];
-            locationsData.push(start);
-            if (j === len - 1) {
-                break;
-            }
-            const end = trip.locations[j + 1];
-            arcsData.push({
-                startLat: start.lat,
-                startLng: start.lng,
-                endLat: end.lat,
-                endLng: end.lng,
-                color: color,
-            });
-        }
-    }
-};
-importJson(tripsJson);
-
-const clickPoint = (point: Object) => {
-    const merge = { ...selectedData, ...point };
-    selectedData.name = merge.name;
-    selectedData.date = merge.date;
-    selectedData.images = merge.images;
-    selectedImages.length = 0;
-    selectedImages.push(
-        ...selectedData.images.map((image, i) => (
-            <div key={i}>
-                <img
-                    src={`${process.env.PUBLIC_URL}/images/${image}`}
-                    alt={image}
-                />
-            </div>
-        ))
-    );
-};
+import React, { FC, useEffect, useRef } from "react";
+import Globe, { GlobeMethods } from "react-globe.gl";
+import { locationsData, arcsData, setSelectedData } from "./data";
 
 const Map: FC<{
     open: boolean;
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }> = (props) => {
+    const globeEl = useRef<GlobeMethods>();
+    useEffect(() => {
+        if (globeEl.current) {
+            globeEl.current.controls().autoRotate = true;
+            globeEl.current.controls().autoRotateSpeed = -0.1;
+        }
+    });
     return (
         <Globe
+            ref={globeEl}
             globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            // points
             pointsData={locationsData}
+            pointAltitude={0.02}
+            pointRadius={0.05}
+            pointColor={() => "silver"}
             onPointClick={(point) => {
-                props.setOpen((o) => !o);
-                clickPoint(point);
+                props.setOpen(true);
+                setSelectedData(point);
             }}
+            // labels
+            labelsData={locationsData}
+            labelText={() => ""}
+            labelSize={1}
+            labelDotRadius={0.3}
+            labelColor={() => "rgba(0, 0, 0, 0.5)"}
+            onLabelClick={(label) => {
+                props.setOpen(true);
+                setSelectedData(label);
+            }}
+            // objects
+            objectsData={locationsData}
+            objectAltitude={0.02}
+            onObjectClick={(object) => {
+                props.setOpen(true);
+                setSelectedData(object);
+            }}
+            // arcs
             arcsData={arcsData}
             arcColor={"color"}
             arcDashLength={1}

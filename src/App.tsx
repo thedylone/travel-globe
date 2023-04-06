@@ -9,7 +9,7 @@ function App() {
         <div className="App">
             <Globe open={open} setOpen={setOpen} />
             <Popup open={open} setOpen={setOpen}>
-                <Carousel open={open} setOpen={setOpen} />
+                <Carousel />
             </Popup>
         </div>
     );
