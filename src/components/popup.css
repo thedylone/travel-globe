@@ -1,20 +1,22 @@
+.popup-overlay {
+    cursor: pointer;
+}
+
 .popup-content {
-    --popup-background: #fffcf2;
+    --popup-background: #272a34;
     background: var(--popup-background);
     border: none;
     border-radius: 1rem;
-    font-size: 2rem;
     box-shadow: 0 0 1rem 0 rgba(0, 0, 0, 0.5);
+    cursor: auto;
 }
 
 .modal {
     background: var(--popup-background);
 }
 
-@media (prefers-color-scheme: dark) {
-    .popup-content {
-        --popup-background: #272a34;
-    }
+.thumb {
+    cursor: pointer;
 }
 
 /* animation */
