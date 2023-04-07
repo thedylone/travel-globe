@@ -44,7 +44,7 @@ const randomHsl = () => `hsla(${Math.random() * 360}, 100%, 50%, 1)`;
 const importJson = (tripsJson: ITripsJson) => {
     for (let i = 0; i < Object.keys(tripsJson).length; i++) {
         const trip = tripsJson[i];
-        const color = [randomHsl(), randomHsl()];
+        let prevColor = null;
         const len = trip.locations.length;
         for (let j = 0; j < len; j++) {
             const start = trip.locations[j];
@@ -53,6 +53,10 @@ const importJson = (tripsJson: ITripsJson) => {
                 break;
             }
             const end = trip.locations[j + 1];
+            const startColor = prevColor || randomHsl();
+            const endColor = randomHsl();
+            const color = [startColor, endColor];
+            prevColor = endColor;
             arcsData.push({
                 startLat: start.lat,
                 startLng: start.lng,
