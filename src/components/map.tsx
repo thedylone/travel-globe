@@ -1,7 +1,12 @@
 import React, { FC, useEffect, useRef } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
-import { locationsData, arcsData, setSelectedData } from "./data";
+import {
+    ILocationData,
+    locationsData,
+    arcsData,
+    setSelectedData,
+} from "./data";
 
 const Map: FC<{
     open: boolean;
@@ -12,7 +17,7 @@ const Map: FC<{
     useEffect(() => {
         if (globeEl.current) {
             globeEl.current.controls().autoRotate = !props.open;
-            globeEl.current.controls().autoRotateSpeed = -0.1;
+            globeEl.current.controls().autoRotateSpeed = -0.05;
         }
     });
     const onClick = (data: Object) => {
@@ -21,7 +26,20 @@ const Map: FC<{
         props.setOpen(true);
         setSelectedData(data);
     };
-    const geometry = new THREE.SphereGeometry(0.75, 32, 32);
+    const location: ILocationData = {
+        name: "test",
+        date: "test",
+        lat: 0,
+        lng: 0,
+        images: [],
+    };
+    const label = (data: Object) => {
+        const merge = { ...location, ...data };
+        return `<h2 style="line-height:0">
+        ${merge.name}
+        </h2>`;
+    };
+    const geometry = new THREE.SphereGeometry(.3, 32, 32);
     const material = new THREE.MeshBasicMaterial({ color: "red" });
     const sphere = new THREE.Mesh(geometry, material);
     return (
@@ -34,19 +52,21 @@ const Map: FC<{
             // backgroundImageUrl={`${process.env.PUBLIC_URL}/images/stars.png`}
             // points
             pointsData={locationsData}
+            pointLabel={label}
             pointAltitude={0.02}
-            pointRadius={0.05}
+            pointRadius={0.02}
             pointColor={() => "silver"}
             onPointClick={onClick}
             // labels
             labelsData={locationsData}
             labelText={() => ""}
             labelSize={1}
-            labelDotRadius={0.3}
+            labelDotRadius={0.1}
             labelColor={() => "rgba(0, 0, 0, 0.5)"}
             onLabelClick={onClick}
             // objects
             objectsData={locationsData}
+            objectLabel={label}
             objectAltitude={0.02}
             objectThreeObject={sphere}
             onObjectClick={onClick}

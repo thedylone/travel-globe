@@ -7,7 +7,7 @@ const DynamicCarousel: FC = () => {
     const placeholder = [
         <div key={0}>
             <img
-                src={`${process.env.PUBLIC_URL}/images/8.png`}
+                src={`${process.env.PUBLIC_URL}/images/piplup-goodnight.gif`}
                 alt="placeholder"
             />
         </div>,
@@ -16,7 +16,7 @@ const DynamicCarousel: FC = () => {
         return images.map((image, index) => (
             <div key={index}>
                 <img
-                    src={`${process.env.PUBLIC_URL}/images/${image}`}
+                    src={image}
                     alt={image}
                 />
             </div>
