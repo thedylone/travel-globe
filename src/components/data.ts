@@ -1,4 +1,5 @@
 import _tripsJson from "../data/trips.json";
+import _specialJson from "../data/special.json";
 
 export interface ISelectedData {
     name: string;
@@ -10,8 +11,9 @@ export interface ILocationData {
     name: string;
     lat: number;
     lng: number;
-    date: string;
-    images: string[];
+    date?: string;
+    type?: "home" | "school" | "work";
+    images?: string[];
 }
 
 export interface IArcData {
@@ -28,9 +30,16 @@ export interface ITripsJson {
     };
 }
 
+export interface ISpecialJson {
+    home?: ILocationData;
+    school?: ILocationData;
+    work?: ILocationData;
+}
+
 export const selectedData: ISelectedData = { name: "", date: "", images: [] };
 export const locationsData: ILocationData[] = [];
 export const arcsData: IArcData[] = [];
+export const specialData: ILocationData[] = [];
 
 export const setSelectedData = (data: Object) => {
     const merge = { ...selectedData, ...data };
@@ -68,3 +77,22 @@ const importJson = (tripsJson: ITripsJson) => {
     }
 };
 importJson(_tripsJson);
+
+const importSpecialJson = (specialJson: ISpecialJson) => {
+    if (specialJson.home) {
+        const home = specialJson.home;
+        home.type = "home";
+        specialData.push(home);
+    }
+    if (specialJson.school) {
+        const school = specialJson.school;
+        school.type = "school";
+        specialData.push(school);
+    }
+    if (specialJson.work) {
+        const work = specialJson.work;
+        work.type = "work";
+        specialData.push(work);
+    }
+};
+importSpecialJson(_specialJson);
