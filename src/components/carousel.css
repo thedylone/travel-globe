@@ -1,0 +1,12 @@
+.carousel .slide div {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.carousel .slide img {
+    max-height: 60vh;
+    width: auto;
+    max-width: 100%;
+}

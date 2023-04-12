@@ -104,10 +104,10 @@ const Map: FC<{
                     element.style.color = "orange"
                 } else if (merge.type === "school") {
                     element.innerHTML = schoolSvg;
-                    element.style.color = "blue"
+                    element.style.color = "cyan"
                 } else if (merge.type === "work") {
                     element.innerHTML = workSvg;
-                    element.style.color = "green"
+                    element.style.color = "lime"
                 }
                 element.style.opacity = "0.5";
                 element.style.width = "30px";

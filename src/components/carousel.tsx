@@ -2,6 +2,7 @@ import React, { FC } from "react";
 import { selectedData } from "./data";
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
+import "./carousel.css";
 
 const DynamicCarousel: FC = () => {
     const placeholder = [

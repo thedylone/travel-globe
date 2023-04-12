@@ -25,8 +25,10 @@ export interface IArcData {
 }
 
 export interface ITripsJson {
-    [key: number]: {
+    [key: string]: {
         locations: ILocationData[];
+        start?: ILocationData;
+        end?: ILocationData;
     };
 }
 
@@ -51,9 +53,24 @@ export const setSelectedData = (data: Object) => {
 const randomHsl = () => `hsla(${Math.random() * 360}, 100%, 50%, 1)`;
 
 const importJson = (tripsJson: ITripsJson) => {
-    for (let i = 0; i < Object.keys(tripsJson).length; i++) {
-        const trip = tripsJson[i];
+    for (const key in tripsJson) {
+        const trip = tripsJson[key];
         let prevColor = null;
+        if (trip.start) {
+            const start = trip.start;
+            const first = trip.locations[0];
+            const startColor = randomHsl();
+            const endColor = randomHsl();
+            const color = [startColor, endColor];
+            prevColor = endColor;
+            arcsData.push({
+                startLat: start.lat,
+                startLng: start.lng,
+                endLat: first.lat,
+                endLng: first.lng,
+                color: color,
+            });
+        }
         const len = trip.locations.length;
         for (let j = 0; j < len; j++) {
             const start = trip.locations[j];
@@ -69,6 +86,20 @@ const importJson = (tripsJson: ITripsJson) => {
             arcsData.push({
                 startLat: start.lat,
                 startLng: start.lng,
+                endLat: end.lat,
+                endLng: end.lng,
+                color: color,
+            });
+        }
+        if (trip.end) {
+            const end = trip.end;
+            const last = trip.locations[len - 1];
+            const startColor = prevColor || randomHsl();
+            const endColor = randomHsl();
+            const color = [startColor, endColor];
+            arcsData.push({
+                startLat: last.lat,
+                startLng: last.lng,
                 endLat: end.lat,
                 endLng: end.lng,
                 color: color,
