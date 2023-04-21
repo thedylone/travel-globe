@@ -1,6 +1,7 @@
-import React, { FC, useEffect, useRef } from "react";
+import React, { FC, useState, useEffect, useRef } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
+import Settings from "./settings";
 import {
     ILocationData,
     locationsData,
@@ -14,10 +15,11 @@ const Map: FC<{
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }> = (props) => {
     const initTime = Date.now();
+    const [rotate, setRotate] = useState(true);
     const globeEl = useRef<GlobeMethods>();
     useEffect(() => {
         if (globeEl.current) {
-            globeEl.current.controls().autoRotate = !props.open;
+            globeEl.current.controls().autoRotate = rotate && !props.open;
             globeEl.current.controls().autoRotateSpeed = -0.05;
         }
     });
@@ -61,60 +63,63 @@ const Map: FC<{
     const material = new THREE.MeshBasicMaterial({ color: "red" });
     const sphere = new THREE.Mesh(geometry, material);
     return (
-        <Globe
-            ref={globeEl}
-            globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-            // globeImageUrl={`${process.env.PUBLIC_URL}/images/world.png`}
-            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-            // backgroundImageUrl={`${process.env.PUBLIC_URL}/images/stars.png`}
-            // points
-            pointsData={locationsData}
-            pointLabel={label}
-            pointAltitude={0.02}
-            pointRadius={0.02}
-            pointColor={() => "silver"}
-            onPointClick={onClick}
-            // labels
-            labelsData={locationsData}
-            labelText={() => ""}
-            labelSize={1}
-            labelDotRadius={0.1}
-            labelColor={() => "rgba(0, 0, 0, 0.5)"}
-            onLabelClick={onClick}
-            // objects
-            objectsData={locationsData}
-            objectLabel={label}
-            objectAltitude={0.02}
-            objectThreeObject={sphere}
-            onObjectClick={onClick}
-            // arcs
-            arcsData={arcsData}
-            arcColor={"color"}
-            arcDashLength={0.5}
-            arcDashGap={0.5}
-            arcDashAnimateTime={5000}
-            // html elements
-            htmlElementsData={specialData}
-            htmlElement={(d) => {
-                const merge = { ...location, ...d };
-                const element = document.createElement("div");
-                if (merge.type === "home") {
-                    element.innerHTML = homeSvg;
-                    element.style.color = "orange"
-                } else if (merge.type === "school") {
-                    element.innerHTML = schoolSvg;
-                    element.style.color = "cyan"
-                } else if (merge.type === "work") {
-                    element.innerHTML = workSvg;
-                    element.style.color = "lime"
-                }
-                element.style.opacity = "0.5";
-                element.style.width = "30px";
-                element.style.top = "-15px";
-                return element;
-            }}
-        />
+        <>
+            <Globe
+                ref={globeEl}
+                globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+                // globeImageUrl={`${process.env.PUBLIC_URL}/images/world.png`}
+                bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+                // backgroundImageUrl={`${process.env.PUBLIC_URL}/images/stars.png`}
+                // points
+                pointsData={locationsData}
+                pointLabel={label}
+                pointAltitude={0.02}
+                pointRadius={0.02}
+                pointColor={() => "silver"}
+                onPointClick={onClick}
+                // labels
+                labelsData={locationsData}
+                labelText={() => ""}
+                labelSize={1}
+                labelDotRadius={0.1}
+                labelColor={() => "rgba(0, 0, 0, 0.5)"}
+                onLabelClick={onClick}
+                // objects
+                objectsData={locationsData}
+                objectLabel={label}
+                objectAltitude={0.02}
+                objectThreeObject={sphere}
+                onObjectClick={onClick}
+                // arcs
+                arcsData={arcsData}
+                arcColor={"color"}
+                arcDashLength={0.5}
+                arcDashGap={0.5}
+                arcDashAnimateTime={5000}
+                // html elements
+                htmlElementsData={specialData}
+                htmlElement={(d) => {
+                    const merge = { ...location, ...d };
+                    const element = document.createElement("div");
+                    if (merge.type === "home") {
+                        element.innerHTML = homeSvg;
+                        element.style.color = "orange";
+                    } else if (merge.type === "school") {
+                        element.innerHTML = schoolSvg;
+                        element.style.color = "cyan";
+                    } else if (merge.type === "work") {
+                        element.innerHTML = workSvg;
+                        element.style.color = "lime";
+                    }
+                    element.style.opacity = "0.5";
+                    element.style.width = "30px";
+                    element.style.top = "-15px";
+                    return element;
+                }}
+            />
+            <Settings rotate={rotate} setRotate={setRotate} />
+        </>
     );
 };
 
