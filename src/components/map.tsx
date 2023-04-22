@@ -42,11 +42,34 @@ const workSvg = `<svg viewBox="0 0 36 36">
 </svg>`;
 const geometry = new THREE.SphereGeometry(0.3, 32, 32);
 const material = new THREE.MeshBasicMaterial({ color: "red" });
-const globeDay = "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
-// const globeDay = `${process.env.PUBLIC_URL}/images/world.png`
-const globeNight = "//unpkg.com/three-globe/example/img/earth-night.jpg";
-const background = "//unpkg.com/three-globe/example/img/night-sky.png";
-// const background = `${process.env.PUBLIC_URL}/images/stars.png`
+interface IGlobeImages {
+    day: {
+        low: string;
+        high: string;
+    };
+    night: {
+        low: string;
+        high: string;
+    };
+    background: {
+        low: string;
+        high: string;
+    };
+}
+const globeImages: IGlobeImages = {
+    day: {
+        low: "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
+        high: `${process.env.PUBLIC_URL}/images/world.png`,
+    },
+    night: {
+        low: "//unpkg.com/three-globe/example/img/earth-night.jpg",
+        high: `${process.env.PUBLIC_URL}/images/world_night.jpg`,
+    },
+    background: {
+        low: "//unpkg.com/three-globe/example/img/night-sky.png",
+        high: `${process.env.PUBLIC_URL}/images/stars.png`,
+    },
+};
 const bump = "//unpkg.com/three-globe/example/img/earth-topology.png";
 
 const Map: FC<{
@@ -56,7 +79,10 @@ const Map: FC<{
     const initTime = Date.now();
     const [rotate, setRotate] = useState(true);
     const [day, setDay] = useState(true);
+    const [res, setRes] = useState(false);
     const globeEl = useRef<GlobeMethods>();
+    const isDay = day ? "day" : "night";
+    const isRes = res ? "high" : "low";
     useEffect(() => {
         if (globeEl.current) {
             globeEl.current.controls().autoRotate = rotate && !props.open;
@@ -73,9 +99,9 @@ const Map: FC<{
         <>
             <Globe
                 ref={globeEl}
-                globeImageUrl={day ? globeDay : globeNight}
+                globeImageUrl={globeImages[isDay][isRes]}
                 bumpImageUrl={bump}
-                backgroundImageUrl={background}
+                backgroundImageUrl={globeImages.background[isRes]}
                 // points
                 pointsData={locationsData}
                 pointLabel={label}
@@ -128,6 +154,8 @@ const Map: FC<{
                 setRotate={setRotate}
                 day={day}
                 setDay={setDay}
+                res={res}
+                setRes={setRes}
             />
         </>
     );
