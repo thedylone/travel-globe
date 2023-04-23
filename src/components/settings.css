@@ -1,16 +1,16 @@
 .settings {
     position: absolute;
     top: 0;
-    left: -10rem;
+    left: -12rem;
     background: red;
     background: rgba(70, 70, 70, 0.5);
-    width: 8em;
+    width: 10em;
     min-height: 1.5rem;
+    max-height: calc(100vh - 2rem);
     padding: 1rem;
     transition: all 0.5s ease;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
     gap: 1rem;
 }
 
@@ -36,9 +36,27 @@
     left: 0;
 }
 
+.settings__wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    overflow-y: auto;
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.settings__wrapper::-webkit-scrollbar {
+    display: none;
+}
+
+
 .settings__option {
     width: 100%;
-    min-height: 1.5rem;
+    /* min-height: 1.5rem; */
     display: flex;
     justify-content: space-between;
     align-items: center;
