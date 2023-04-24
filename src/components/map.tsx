@@ -4,8 +4,7 @@ import * as THREE from "three";
 import Settings from "./settings";
 import {
     ILocationData,
-    locationsData,
-    arcsData,
+    tripsData as _tripsData,
     specialData,
     setSelectedData,
 } from "./data";
@@ -80,6 +79,7 @@ const Map: FC<{
     const [rotate, setRotate] = useState(true);
     const [day, setDay] = useState(true);
     const [res, setRes] = useState(false);
+    const [tripsData, setTripsData] = useState(_tripsData);
     const globeEl = useRef<GlobeMethods>();
     const isDay = day ? "day" : "night";
     const isRes = res ? "high" : "low";
@@ -95,6 +95,15 @@ const Map: FC<{
         props.setOpen(true);
         setSelectedData(data);
     };
+    const locationsData = [];
+    const arcsData = [];
+    for (const key in tripsData) {
+        const trip = tripsData[key];
+        if (trip.enabled) {
+            locationsData.push(...trip.locations);
+            arcsData.push(...trip.arcs);
+        }
+    }
     return (
         <>
             <Globe
@@ -156,6 +165,8 @@ const Map: FC<{
                 setDay={setDay}
                 res={res}
                 setRes={setRes}
+                tripsData={tripsData}
+                setTripsData={setTripsData}
             />
         </>
     );

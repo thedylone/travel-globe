@@ -32,6 +32,14 @@ export interface ITripsJson {
     };
 }
 
+export interface ITripsData {
+    [key: string]: {
+        locations: ILocationData[];
+        arcs: IArcData[];
+        enabled: boolean;
+    };
+}
+
 export interface ISpecialJson {
     home?: ILocationData;
     school?: ILocationData;
@@ -39,8 +47,7 @@ export interface ISpecialJson {
 }
 
 export const selectedData: ISelectedData = { name: "", date: "", images: [] };
-export const locationsData: ILocationData[] = [];
-export const arcsData: IArcData[] = [];
+export const tripsData: ITripsData = {};
 export const specialData: ILocationData[] = [];
 
 export const setSelectedData = (data: Object) => {
@@ -52,62 +59,47 @@ export const setSelectedData = (data: Object) => {
 
 const randomHsl = () => `hsla(${Math.random() * 360}, 100%, 50%, 1)`;
 
-const importJson = (tripsJson: ITripsJson) => {
+const createArc = (
+    start: ILocationData,
+    end: ILocationData,
+    prevColor: string | null
+) => {
+    const endColor = randomHsl();
+    const color = [prevColor || randomHsl(), endColor];
+    prevColor = endColor;
+    return {
+        startLat: start.lat,
+        startLng: start.lng,
+        endLat: end.lat,
+        endLng: end.lng,
+        color: color,
+    };
+};
+
+const initArcs = (tripsJson: ITripsJson) => {
     for (const key in tripsJson) {
         const trip = tripsJson[key];
+        const arcs: IArcData[] = [];
+        tripsData[key] = {
+            locations: trip.locations,
+            arcs: arcs,
+            enabled: true,
+        };
         let prevColor = null;
+        const locations = [...trip.locations];
         if (trip.start) {
-            const start = trip.start;
-            const first = trip.locations[0];
-            const startColor = randomHsl();
-            const endColor = randomHsl();
-            const color = [startColor, endColor];
-            prevColor = endColor;
-            arcsData.push({
-                startLat: start.lat,
-                startLng: start.lng,
-                endLat: first.lat,
-                endLng: first.lng,
-                color: color,
-            });
-        }
-        const len = trip.locations.length;
-        for (let j = 0; j < len; j++) {
-            const start = trip.locations[j];
-            locationsData.push(start);
-            if (j === len - 1) {
-                break;
-            }
-            const end = trip.locations[j + 1];
-            const startColor = prevColor || randomHsl();
-            const endColor = randomHsl();
-            const color = [startColor, endColor];
-            prevColor = endColor;
-            arcsData.push({
-                startLat: start.lat,
-                startLng: start.lng,
-                endLat: end.lat,
-                endLng: end.lng,
-                color: color,
-            });
+            locations.unshift(trip.start);
         }
         if (trip.end) {
-            const end = trip.end;
-            const last = trip.locations[len - 1];
-            const startColor = prevColor || randomHsl();
-            const endColor = randomHsl();
-            const color = [startColor, endColor];
-            arcsData.push({
-                startLat: last.lat,
-                startLng: last.lng,
-                endLat: end.lat,
-                endLng: end.lng,
-                color: color,
-            });
+            locations.push(trip.end);
+        }
+        for (let i = 0; i < locations.length - 1; i++) {
+            const arc = createArc(locations[i], locations[i + 1], prevColor);
+            arcs.push(arc);
         }
     }
 };
-importJson(_tripsJson);
+initArcs(_tripsJson);
 
 const importSpecialJson = (specialJson: ISpecialJson) => {
     if (specialJson.home) {

@@ -1,6 +1,6 @@
 import React, { FC } from "react";
 import "./settings.css";
-import _tripsJson from "../data/trips.json";
+import { ITripsData } from "./data";
 
 const createOption = (
     name: string,
@@ -21,10 +21,21 @@ const createOption = (
     );
 };
 
-const createTripOption = () => {
+const createTripOption = (
+    tripsData: ITripsData,
+    setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>
+) => {
     const options: JSX.Element[] = [];
-    for (const trip in _tripsJson) {
-        options.push(createOption(trip, true, () => {}));
+    for (const key in tripsData) {
+        const trip = tripsData[key];
+        options.push(
+            createOption(key, trip.enabled, (value) => {
+                setTripsData({
+                    ...tripsData,
+                    [key]: { ...trip, enabled: value },
+                });
+            })
+        );
     }
     return options;
 };
@@ -36,16 +47,18 @@ const Settings: FC<{
     setDay: React.Dispatch<React.SetStateAction<boolean>>;
     res: boolean;
     setRes: React.Dispatch<React.SetStateAction<boolean>>;
+    tripsData: ITripsData;
+    setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>;
 }> = (props) => {
     return (
         <div className="settings">
             <div className="settings__wrapper">
-            <h1>Globe</h1>
-            {createOption("Rotate", props.rotate, props.setRotate)}
-            {createOption("Day", props.day, props.setDay)}
-            {createOption("High Resolution", props.res, props.setRes)}
-            <h1>Trips</h1>
-            {createTripOption()}
+                <h1>Globe</h1>
+                {createOption("Rotate", props.rotate, props.setRotate)}
+                {createOption("Day", props.day, props.setDay)}
+                {createOption("High Resolution", props.res, props.setRes)}
+                <h1>Trips</h1>
+                {createTripOption(props.tripsData, props.setTripsData)}
             </div>
         </div>
     );
