@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useRef } from "react";
+import React, { FC, useState, useEffect, useRef, useCallback } from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import Settings from "./settings";
@@ -116,14 +116,14 @@ const Map: FC<{
                 pointLabel={label}
                 pointAltitude={0.02}
                 pointRadius={0.02}
-                pointColor={() => "silver"}
+                pointColor={useCallback(() => "silver", [])}
                 onPointClick={onClick}
                 // labels
                 labelsData={locationsData}
                 labelText={() => ""}
                 labelSize={1}
                 labelDotRadius={0.1}
-                labelColor={() => "rgba(0, 0, 0, 0.5)"}
+                labelColor={useCallback(() => "rgba(0, 0, 0, 0.5)", [])}
                 onLabelClick={onClick}
                 // objects
                 objectsData={locationsData}

@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, useCallback, useEffect } from "react";
 import "./settings.css";
 import { ITripsData } from "./data";
 
@@ -50,13 +50,32 @@ const Settings: FC<{
     tripsData: ITripsData;
     setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>;
 }> = (props) => {
+    const keyboardHandler = useCallback(
+        (e: KeyboardEvent) => {
+            if (e.key === "r") {
+                props.setRotate(!props.rotate);
+            } else if (e.key === "d") {
+                props.setDay(!props.day);
+            } else if (e.key === "h") {
+                props.setRes(!props.res);
+            }
+        },
+        [props]
+    );
+    useEffect(() => {
+        window.addEventListener("keydown", keyboardHandler);
+        return () => {
+            window.removeEventListener("keydown", keyboardHandler);
+        };
+    }, [keyboardHandler]);
+
     return (
         <div className="settings">
             <div className="settings__wrapper">
                 <h1>Globe</h1>
-                {createOption("Rotate", props.rotate, props.setRotate)}
-                {createOption("Day", props.day, props.setDay)}
-                {createOption("High Resolution", props.res, props.setRes)}
+                {createOption("Rotate (R)", props.rotate, props.setRotate)}
+                {createOption("Day (D)", props.day, props.setDay)}
+                {createOption("High Resolution (H)", props.res, props.setRes)}
                 <h1>Trips</h1>
                 {createTripOption(props.tripsData, props.setTripsData)}
             </div>
