@@ -37,7 +37,27 @@ const createTripOption = (
             })
         );
     }
-    return options;
+    return options.reverse();
+};
+
+const hideAll = (
+    tripsData: ITripsData,
+    setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>
+) => {
+    for (const key in tripsData) {
+        tripsData[key].enabled = false;
+    }
+    setTripsData({...tripsData});
+};
+
+const showAll = (
+    tripsData: ITripsData,
+    setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>
+) => {
+    for (const key in tripsData) {
+        tripsData[key].enabled = true;
+    }
+    setTripsData({...tripsData});
 };
 
 const Settings: FC<{
@@ -77,6 +97,25 @@ const Settings: FC<{
                 {createOption("Day (D)", props.day, props.setDay)}
                 {createOption("High Resolution (H)", props.res, props.setRes)}
                 <h1>Trips</h1>
+                <div className="settings__trips--inline">
+                    <span
+                        className="settings__control"
+                        onClick={() =>
+                            hideAll(props.tripsData, props.setTripsData)
+                        }
+                    >
+                        Hide All
+                    </span>
+                    <span
+                        className="settings__control"
+                        onClick={() =>
+                            showAll(props.tripsData, props.setTripsData)
+                        }
+                    >
+                        Show All
+                    </span>
+                </div>
+
                 {createTripOption(props.tripsData, props.setTripsData)}
             </div>
         </div>
