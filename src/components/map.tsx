@@ -1,4 +1,11 @@
-import React, { FC, useState, useEffect, useRef, useCallback } from "react";
+import React, {
+    FC,
+    useState,
+    useEffect,
+    useRef,
+    useCallback,
+    useMemo,
+} from "react";
 import Globe, { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import Settings from "./settings";
@@ -7,6 +14,7 @@ import {
     tripsData as _tripsData,
     specialData,
     setSelectedData,
+    IArcData,
 } from "./data";
 
 const location: ILocationData = {
@@ -41,21 +49,7 @@ const workSvg = `<svg viewBox="0 0 36 36">
 </svg>`;
 const geometry = new THREE.SphereGeometry(0.3, 32, 32);
 const material = new THREE.MeshBasicMaterial({ color: "red" });
-interface IGlobeImages {
-    day: {
-        low: string;
-        high: string;
-    };
-    night: {
-        low: string;
-        high: string;
-    };
-    background: {
-        low: string;
-        high: string;
-    };
-}
-const globeImages: IGlobeImages = {
+const globeImages = {
     day: {
         low: "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg",
         high: `${process.env.PUBLIC_URL}/images/world.png`,
@@ -68,48 +62,86 @@ const globeImages: IGlobeImages = {
         low: "//unpkg.com/three-globe/example/img/night-sky.png",
         high: `${process.env.PUBLIC_URL}/images/stars.png`,
     },
+    bump: "//unpkg.com/three-globe/example/img/earth-topology.png",
 };
-const bump = "//unpkg.com/three-globe/example/img/earth-topology.png";
+const _settings = {
+    rotate: true,
+    day: true,
+    res: false,
+};
 
 const Map: FC<{
     open: boolean;
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }> = (props) => {
+    const open = props.open;
+    const setOpen = props.setOpen;
     const initTime = Date.now();
-    const [rotate, setRotate] = useState(true);
-    const [day, setDay] = useState(true);
-    const [res, setRes] = useState(false);
+    const [width, setWidth] = useState(window.innerWidth);
+    const [height, setHeight] = useState(window.innerHeight);
+    const [settings, setSettings] = useState(_settings);
     const [tripsData, setTripsData] = useState(_tripsData);
+    const [locationsData, setLocationsData] = useState<ILocationData[]>([]);
+    const [arcsData, setArcsData] = useState<IArcData[]>([]);
     const globeEl = useRef<GlobeMethods>();
-    const isDay = day ? "day" : "night";
-    const isRes = res ? "high" : "low";
+    const isDay = settings.day ? "day" : "night";
+    const isRes = settings.res ? "high" : "low";
+    useEffect(() => {
+        const resizeHandler = () => {
+            setWidth(window.innerWidth);
+            setHeight(window.innerHeight);
+        };
+        window.addEventListener("resize", resizeHandler);
+        return () => {
+            window.removeEventListener("resize", resizeHandler);
+        };
+    }, []);
     useEffect(() => {
         if (globeEl.current) {
-            globeEl.current.controls().autoRotate = rotate && !props.open;
+            globeEl.current.controls().autoRotate = settings.rotate && !open;
             globeEl.current.controls().autoRotateSpeed = -0.05;
         }
     });
-    const onClick = (data: Object) => {
-        // check if after init time to prevent double click
-        if (Date.now() - initTime < 500) return;
-        props.setOpen(true);
-        setSelectedData(data);
-    };
-    const locationsData = [];
-    const arcsData = [];
-    for (const key in tripsData) {
-        const trip = tripsData[key];
-        if (trip.enabled) {
-            locationsData.push(...trip.locations);
-            arcsData.push(...trip.arcs);
+    const memoizedData = useMemo(() => {
+        const locations = [];
+        const arcs = [];
+        for (const key in tripsData) {
+            const trip = tripsData[key];
+            if (trip.enabled) {
+                locations.push(...trip.locations);
+                arcs.push(...trip.arcs);
+            }
         }
-    }
+        return { locations, arcs };
+    }, [tripsData]);
+    useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+        timeoutId = setTimeout(() => {
+            console.log(memoizedData.locations)
+          setLocationsData(memoizedData.locations);
+          setArcsData(memoizedData.arcs);
+        }, 100); // Delay of 100ms (adjust as needed)
+    
+        return () => clearTimeout(timeoutId);
+      }, [memoizedData]);
+    const onClick = useCallback(
+        (data: Object) => {
+            // check if after init time to prevent double click
+            if (Date.now() - initTime < 500) return;
+            setOpen(true);
+            setSelectedData(data);
+        },
+        [setOpen, initTime]
+    );
+
     return (
         <>
             <Globe
+                width={width}
+                height={height}
                 ref={globeEl}
                 globeImageUrl={globeImages[isDay][isRes]}
-                bumpImageUrl={bump}
+                bumpImageUrl={globeImages.bump}
                 backgroundImageUrl={globeImages.background[isRes]}
                 // points
                 pointsData={locationsData}
@@ -159,12 +191,8 @@ const Map: FC<{
                 }}
             />
             <Settings
-                rotate={rotate}
-                setRotate={setRotate}
-                day={day}
-                setDay={setDay}
-                res={res}
-                setRes={setRes}
+                settings={settings}
+                setSettings={setSettings}
                 tripsData={tripsData}
                 setTripsData={setTripsData}
             />

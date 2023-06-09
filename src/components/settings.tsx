@@ -2,10 +2,16 @@ import React, { FC, useCallback, useEffect } from "react";
 import "./settings.css";
 import { ITripsData } from "./data";
 
+interface ISettings {
+    rotate: boolean;
+    day: boolean;
+    res: boolean;
+}
+
 const createOption = (
     name: string,
     value: boolean,
-    setValue: (value: boolean) => void
+    onChange: React.ChangeEventHandler<HTMLInputElement>
 ) => {
     return (
         <div className="settings__option" key={name}>
@@ -15,7 +21,7 @@ const createOption = (
                 checked={value}
                 type="checkbox"
                 id={name}
-                onChange={(e) => setValue(e.target.checked)}
+                onChange={onChange}
             />
         </div>
     );
@@ -29,10 +35,10 @@ const createTripOption = (
     for (const key in tripsData) {
         const trip = tripsData[key];
         options.push(
-            createOption(key, trip.enabled, (value) => {
+            createOption(key, trip.enabled, (e) => {
                 setTripsData({
                     ...tripsData,
-                    [key]: { ...trip, enabled: value },
+                    [key]: { ...trip, enabled: e.target.checked },
                 });
             })
         );
@@ -47,7 +53,7 @@ const hideAll = (
     for (const key in tripsData) {
         tripsData[key].enabled = false;
     }
-    setTripsData({...tripsData});
+    setTripsData({ ...tripsData });
 };
 
 const showAll = (
@@ -57,27 +63,32 @@ const showAll = (
     for (const key in tripsData) {
         tripsData[key].enabled = true;
     }
-    setTripsData({...tripsData});
+    setTripsData({ ...tripsData });
 };
 
 const Settings: FC<{
-    rotate: boolean;
-    setRotate: React.Dispatch<React.SetStateAction<boolean>>;
-    day: boolean;
-    setDay: React.Dispatch<React.SetStateAction<boolean>>;
-    res: boolean;
-    setRes: React.Dispatch<React.SetStateAction<boolean>>;
+    settings: ISettings;
+    setSettings: React.Dispatch<React.SetStateAction<ISettings>>;
     tripsData: ITripsData;
     setTripsData: React.Dispatch<React.SetStateAction<ITripsData>>;
 }> = (props) => {
     const keyboardHandler = useCallback(
         (e: KeyboardEvent) => {
             if (e.key === "r") {
-                props.setRotate(!props.rotate);
+                props.setSettings({
+                    ...props.settings,
+                    rotate: !props.settings.rotate,
+                });
             } else if (e.key === "d") {
-                props.setDay(!props.day);
+                props.setSettings({
+                    ...props.settings,
+                    day: !props.settings.day,
+                });
             } else if (e.key === "h") {
-                props.setRes(!props.res);
+                props.setSettings({
+                    ...props.settings,
+                    res: !props.settings.res,
+                });
             }
         },
         [props]
@@ -93,9 +104,24 @@ const Settings: FC<{
         <div className="settings">
             <div className="settings__wrapper">
                 <h1>Globe</h1>
-                {createOption("Rotate (R)", props.rotate, props.setRotate)}
-                {createOption("Day (D)", props.day, props.setDay)}
-                {createOption("High Resolution (H)", props.res, props.setRes)}
+                {createOption("Rotate (R)", props.settings.rotate, (e) =>
+                    props.setSettings({
+                        ...props.settings,
+                        rotate: e.target.checked,
+                    })
+                )}
+                {createOption("Day (D)", props.settings.day, (e) =>
+                    props.setSettings({
+                        ...props.settings,
+                        day: e.target.checked,
+                    })
+                )}
+                {createOption("High Resolution (H)", props.settings.res, (e) =>
+                    props.setSettings({
+                        ...props.settings,
+                        res: e.target.checked,
+                    })
+                )}
                 <h1>Trips</h1>
                 <div className="settings__trips--inline">
                     <span
