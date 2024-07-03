@@ -46,16 +46,8 @@ export interface ISpecialJson {
     work?: ILocationData;
 }
 
-export const selectedData: ISelectedData = { name: "", date: "", images: [] };
 export const tripsData: ITripsData = {};
 export const specialData: ILocationData[] = [];
-
-export const setSelectedData = (data: Object) => {
-    const merge = { ...selectedData, ...data };
-    selectedData.name = merge.name;
-    selectedData.date = merge.date;
-    selectedData.images = merge.images;
-};
 
 const randomHsl = () => `hsla(${Math.random() * 360}, 100%, 50%, 1)`;
 

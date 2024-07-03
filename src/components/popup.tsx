@@ -2,12 +2,13 @@ import React, { FC } from "react";
 import Popup from "reactjs-popup";
 import "reactjs-popup/dist/index.css";
 import "./popup.css";
-import { selectedData } from "./data";
+import { ISelectedData } from "./data";
 
 const ControlledPopup: FC<{
     children: React.ReactNode;
     open: boolean;
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    selectedData: ISelectedData
 }> = (props) => {
     return (
         <Popup
@@ -18,8 +19,8 @@ const ControlledPopup: FC<{
         >
             <div className="modal">
                 <div className="modal-header">
-                    <h2>{selectedData.name}</h2>
-                    <p>{selectedData.date}</p>
+                    <h2>{props.selectedData.name}</h2>
+                    <p>{props.selectedData.date}</p>
                 </div>
                 {props.children}
             </div>

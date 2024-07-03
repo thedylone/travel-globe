@@ -13,8 +13,8 @@ import {
     ILocationData,
     tripsData as _tripsData,
     specialData,
-    setSelectedData,
     IArcData,
+    ISelectedData,
 } from "./data";
 
 const location: ILocationData = {
@@ -73,9 +73,13 @@ const _settings = {
 const Map: FC<{
     open: boolean;
     setOpen: React.Dispatch<React.SetStateAction<boolean>>;
+    selectedData: ISelectedData;
+    setSelectedData: React.Dispatch<React.SetStateAction<ISelectedData>>;
 }> = (props) => {
     const open = props.open;
     const setOpen = props.setOpen;
+    const selectedData = props.selectedData;
+    const setSelectedData = props.setSelectedData;
     const initTime = Date.now();
     const [width, setWidth] = useState(window.innerWidth);
     const [height, setHeight] = useState(window.innerHeight);
@@ -112,6 +116,7 @@ const Map: FC<{
                 arcs.push(...trip.arcs);
             }
         }
+        console.log("memoised")
         return { locations, arcs };
     }, [tripsData]);
     useEffect(() => {
@@ -129,9 +134,10 @@ const Map: FC<{
             // check if after init time to prevent double click
             if (Date.now() - initTime < 500) return;
             setOpen(true);
-            setSelectedData(data);
+            const merge = { ...selectedData, ...data };
+            setSelectedData(merge);
         },
-        [setOpen, initTime]
+        [setOpen, selectedData, setSelectedData, initTime]
     );
 
     return (

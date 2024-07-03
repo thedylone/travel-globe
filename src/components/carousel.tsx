@@ -1,12 +1,12 @@
 import React, { FC } from "react";
-import { selectedData } from "./data";
 import { Carousel } from "react-responsive-carousel";
 import "react-responsive-carousel/lib/styles/carousel.min.css";
 import "./carousel.css";
+import { ISelectedData } from "./data";
 
 const imagesPath = process.env.PUBLIC_URL + "/images/";
 
-const DynamicCarousel: FC = () => {
+const DynamicCarousel: FC<{selectedData: ISelectedData}> = (props) => {
     const placeholder = [
         <div key={0}>
             <img
@@ -33,8 +33,8 @@ const DynamicCarousel: FC = () => {
             swipeable={true}
             emulateTouch={true}
         >
-            {selectedData.images.length > 0
-                ? listToCarousel(selectedData.images)
+            {props.selectedData.images.length > 0
+                ? listToCarousel(props.selectedData.images)
                 : placeholder}
         </Carousel>
     );
