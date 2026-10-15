@@ -3,7 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { countryAt } from "./countries.ts";
+import { splitCountries, visitedParts } from "../../src/lib/borders.ts";
+import { renderShareSvg } from "../../src/lib/share.ts";
+import { computeStats } from "../../src/lib/stats.ts";
+import type { Trip } from "../../src/types.ts";
+import { countryAt, countryFeatures } from "./countries.ts";
 import { loadTravelData } from "./load.ts";
 import { groupIntoStops } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
@@ -134,5 +138,50 @@ describe("countryAt", () => {
     it("snaps points just off the coast, but not mid-ocean ones", () => {
         expect(countryAt({ lat: 50.05, lng: -5.8 })).toBe("United Kingdom"); // off Land's End
         expect(countryAt({ lat: 30, lng: -40 })).toBeUndefined();
+    });
+});
+
+describe("visitedParts", () => {
+    const parts = splitCountries(countryFeatures());
+    const shaded = (stops: { lat: number; lng: number; country: string }[]) =>
+        [...visitedParts(parts, stops)].map((id) => id.split("#")[0]);
+
+    it("shades the land masses near your stops, not far-off territories", () => {
+        const paris = { lat: 48.86, lng: 2.35, country: "France" };
+        const france = parts.filter((p) => p.properties.name === "France");
+        const ids = visitedParts(parts, [paris]);
+        expect(ids.size).toBeGreaterThan(0);
+        expect(ids.size).toBeLessThan(france.length); // French Guiana, Réunion etc. stay grey
+        expect(new Set(shaded([paris]))).toEqual(new Set(["France"]));
+    });
+
+    it("only shades countries with a stop", () => {
+        expect(shaded([{ lat: 0, lng: -30, country: "Atlantis" }])).toEqual([]);
+    });
+});
+
+describe("renderShareSvg", () => {
+    const stop = (name: string, lat: number, lng: number, country: string, start: string) =>
+        ({ name, lat, lng, country, start, end: start, media: [] });
+    const trips: Trip[] = [
+        { id: "a", title: "a", start: "2023-01-01", end: "2023-01-03", stops: [stop("paris", 48.86, 2.35, "France", "2023-01-01")] },
+        { id: "b", title: "b", start: "2024-05-01", end: "2024-05-01", stops: [stop("tokyo", 35.68, 139.69, "Japan", "2024-05-01")] },
+    ];
+    const stats = computeStats(trips);
+
+    it("draws the numbers, the years and the countries", () => {
+        const svg = renderShareSvg({ countries: countryFeatures(), stops: trips.flatMap((t) => t.stops), stats, size: "post", url: "example.com" });
+        expect(svg).toMatch(/^<svg [^>]*width="1080" height="1350"/);
+        expect(svg).toContain(">2</tspan>"); // countries
+        expect(svg).toContain("2023–2024");
+        expect(svg).toContain("France  ·  Japan");
+        expect(svg).toContain("example.com");
+        expect((svg.match(/<circle /g) ?? []).length).toBe(2);
+    });
+
+    it("lists only as many countries as fit, then says how many more", () => {
+        const many = Array.from({ length: 60 }, (_, i) => `Country number ${i}`);
+        const svg = renderShareSvg({ countries: [], stops: [], stats: { ...stats, countries: many }, size: "post", url: "" });
+        expect(svg).toMatch(/\+\d+ more/);
     });
 });

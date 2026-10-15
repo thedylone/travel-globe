@@ -1,4 +1,14 @@
+@font-face {
+    font-family: "Bricolage Grotesque";
+    src: url("/fonts/BricolageGrotesque.ttf") format("truetype");
+    font-weight: 200 800;
+    font-display: swap;
+}
+
 :root {
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --land: #1f2a40;
+    --visited: #6cb6ff;
     --bg: #040e20;
     --surface: rgb(18 24 38 / 0.82);
     --surface-solid: #161c2b;
@@ -644,6 +654,378 @@ kbd {
     z-index: 1;
 }
 
+/* ---------- 3D / 2D switch ---------- */
+
+.view-switch {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+}
+
+.view-switch label {
+    display: grid;
+    place-items: center;
+    min-width: 40px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 7px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.view-switch label:has(input:checked) {
+    background: var(--text);
+    color: var(--surface-solid);
+}
+
+.view-switch label:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+}
+
+.view-switch input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* The timeline button sits to the left of the switch. */
+.timeline-toggle {
+    right: 112px;
+}
+
+/* ---------- 2D map ---------- */
+
+.flat {
+    position: fixed;
+    top: 0;
+    z-index: 0;
+    overflow: hidden;
+    background: var(--bg);
+}
+
+.flat__map {
+    display: block;
+    touch-action: none;
+    cursor: grab;
+}
+
+.flat__map:active {
+    cursor: grabbing;
+}
+
+.flat__countries path {
+    fill: var(--land);
+    stroke: var(--bg);
+    stroke-width: 0.6;
+    stroke-linejoin: round;
+}
+
+.flat__countries path[data-visited="true"] {
+    fill: var(--visited);
+}
+
+.flat__countries path:hover {
+    filter: brightness(1.25);
+}
+
+.flat__route {
+    fill: none;
+    stroke-width: 2;
+    stroke-dasharray: 5 4;
+}
+
+.flat__place {
+    stroke: var(--bg);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+}
+
+.flat__place:hover {
+    stroke: #fff;
+    stroke-width: 2px;
+}
+
+.flat__tip {
+    position: absolute;
+    z-index: 2;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgb(10 14 24 / 0.85);
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(12px, -50%);
+}
+
+.flat__zoom {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.flat__zoom button {
+    width: 36px;
+    height: 36px;
+    border: 0;
+    background: none;
+    font-size: 18px;
+}
+
+.flat__zoom button:hover {
+    background: var(--surface-hover);
+}
+
+/* A strip along the bottom on wide screens; the map fits above it. */
+.flat__card {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 24px;
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px 28px;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+}
+
+.flat__headline {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 500;
+}
+
+.flat__headline strong {
+    font-size: 52px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+}
+
+.flat__numbers {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: 8px 22px;
+    margin: 0;
+}
+
+.flat__numbers div {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.flat__numbers dt {
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.flat__numbers dd {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.flat__countries-list {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-muted);
+    text-wrap: pretty;
+}
+
+.flat__share,
+.share__primary,
+.share__secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    background: var(--accent);
+    color: #04101f;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.share__secondary {
+    background: none;
+    color: var(--accent);
+}
+
+.flat__share:hover,
+.share__primary:hover {
+    filter: brightness(1.1);
+}
+
+/* ---------- share dialog ---------- */
+
+.share {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-solid);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+.share::backdrop {
+    background: rgb(0 0 0 / 0.55);
+}
+
+.share__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+}
+
+.share__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.share__header h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.share__sizes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.share__sizes label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.share__sizes label:has(input:checked) {
+    border-color: var(--accent);
+    background: rgb(108 182 255 / 0.12);
+}
+
+.share__sizes label:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.share__sizes input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.share__sizes span {
+    font-weight: 600;
+}
+
+.share__sizes small {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.share__preview {
+    display: grid;
+    place-items: center;
+    max-height: 48dvh;
+    margin: 0 auto;
+    max-width: 100%;
+    border-radius: 8px;
+    background: #0b1220;
+    overflow: hidden;
+}
+
+.share__preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.share__preview p {
+    color: var(--text-muted);
+}
+
+.share__actions {
+    display: flex;
+    gap: 8px;
+}
+
+.share__actions > * {
+    flex: 1;
+}
+
+.share__actions a[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.share__link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.share__link div {
+    display: flex;
+    gap: 6px;
+}
+
+.share__link input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px ui-monospace, monospace;
+}
+
+.share__link button {
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-hover);
+}
+
 /* ---------- place dialog ---------- */
 
 .place {
@@ -915,6 +1297,38 @@ kbd {
 
     .focus-banner {
         max-width: calc(100vw - 32px);
+    }
+
+    .flat__card {
+        top: 64px;
+        left: 12px;
+        right: 12px;
+        bottom: auto;
+        grid-template-columns: 1fr;
+        padding: 12px;
+        gap: 6px;
+    }
+
+    .flat__headline strong {
+        font-size: 36px;
+    }
+
+    .flat__numbers {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .flat__numbers dd {
+        font-size: 18px;
+    }
+
+    .flat__countries-list {
+        display: none;
+    }
+
+    .flat__zoom {
+        top: auto;
+        bottom: calc(80px + env(safe-area-inset-bottom));
+        transform: none;
     }
 
     .timeline-toggle {
