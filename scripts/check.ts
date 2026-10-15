@@ -1,14 +1,17 @@
 /**
  * npm run check [-- --offline]
- * Validates data/ (trip files, bases, photos) and geocodes any new places into
+ * Validates the data folder's data/ (trip files, bases, photos) and geocodes any new places into
  * data/places.json. Run it after editing a trip; the dev server and build do the same checks.
  */
 import { nominatimSearch } from "./lib/geocode.ts";
 import { loadTravelData } from "./lib/load.ts";
+import { loadSite, resolveDataDir } from "./lib/site.ts";
 
 const offline = process.argv.includes("--offline");
+const root = resolveDataDir();
+loadSite(root); // fails on problems in site.yaml
 const { data, errors, warnings } = await loadTravelData({
-    root: process.cwd(),
+    root,
     geocoder: offline ? false : nominatimSearch,
 });
 for (const w of warnings) console.warn(`warning: ${w}`);

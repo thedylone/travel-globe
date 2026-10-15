@@ -15,15 +15,16 @@ import { renderShareSvg, SHARE_SIZES, type ShareSize, type ShareTheme } from "..
 import { computeStats } from "../src/lib/stats.ts";
 import { countryFeatures } from "./lib/countries.ts";
 import { loadTravelData } from "./lib/load.ts";
+import { ENGINE_ROOT, loadSite, resolveDataDir } from "./lib/site.ts";
 
-const root = process.cwd();
+const root = resolveDataDir();
 const outDir = path.resolve(process.argv[2] ?? "dist");
 const FILES: Record<ShareSize, string> = { post: "stats", story: "stats-story", wide: "stats-wide" };
 const fileName = (size: ShareSize, theme: ShareTheme) => `${FILES[size]}${theme === "light" ? "-light" : ""}.png`;
 
 // Render text with the bundled font, the same one the browser export embeds:
 // point fontconfig at public/fonts (plus the system fonts as a fallback).
-const fontDir = path.join(root, "public", "fonts");
+const fontDir = path.join(ENGINE_ROOT, "public", "fonts");
 const confDir = fs.mkdtempSync(path.join(os.tmpdir(), "fonts-"));
 fs.writeFileSync(
     path.join(confDir, "fonts.conf"),
@@ -41,12 +42,11 @@ if (errors.length) {
     process.exit(1);
 }
 const stats = computeStats(data.trips, data.world);
-const homepage = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).homepage as string | undefined;
 const input = {
     countries: countryFeatures(),
     stops: data.trips.flatMap((t) => t.stops),
     stats,
-    url: (homepage ?? "").replace(/^https?:\/\//, "").replace(/\/$/, ""),
+    url: loadSite(root).shortUrl,
 };
 
 fs.mkdirSync(outDir, { recursive: true });
@@ -54,7 +54,7 @@ for (const theme of ["dark", "light"] as const) {
     for (const size of Object.keys(SHARE_SIZES) as ShareSize[]) {
         const file = path.join(outDir, fileName(size, theme));
         await sharp(Buffer.from(renderShareSvg({ ...input, size, theme }))).png({ compressionLevel: 9 }).toFile(file);
-        console.log(`wrote ${path.relative(root, file)}`);
+        console.log(`wrote ${path.relative(process.cwd(), file)}`);
     }
 }
 fs.rmSync(confDir, { recursive: true, force: true });

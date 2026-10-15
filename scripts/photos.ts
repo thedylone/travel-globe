@@ -13,8 +13,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import sharp, { type Sharp } from "sharp";
 import { paths } from "./lib/load.ts";
+import { resolveDataDir } from "./lib/site.ts";
 import { type PhotoManifest, PhotoManifestSchema } from "./lib/schema.ts";
 
 export const FULL_SIZE = 1600;
@@ -25,7 +27,7 @@ const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".
 const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v", ".webm"]);
 const UNSUPPORTED = new Set([".heic", ".heif"]);
 
-const root = process.cwd();
+const root = resolveDataDir();
 const srcDir = path.join(root, "photos");
 const outDir = path.join(root, "public", "photos");
 
@@ -205,7 +207,7 @@ export const processPhotos = async (opts: { force?: boolean; prune?: boolean; on
     return { processed: done, failures, manifest: Object.fromEntries(entries) };
 };
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const args = process.argv.slice(2);
     const flags = new Set(args.filter((a) => a.startsWith("--")));
     const only = args.filter((a) => !a.startsWith("--"));

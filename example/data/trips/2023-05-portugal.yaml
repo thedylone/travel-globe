@@ -1,0 +1,19 @@
+title: portugal
+from: home
+country: pt
+stops:
+  - place: Lisbon
+    lat: 38.7223
+    lng: -9.1393
+    date: 2023-05-12..2023-05-15
+    note: Trams, tiles and pastéis de nata.
+
+  - place: Sintra
+    lat: 38.8029
+    lng: -9.3817
+    date: 2023-05-14
+
+  - place: Porto
+    lat: 41.1579
+    lng: -8.6291
+    date: 2023-05-15..2023-05-18

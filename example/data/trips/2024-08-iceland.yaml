@@ -1,0 +1,23 @@
+title: iceland
+from: home
+country: is
+stops:
+  - place: Reykjavík
+    lat: 64.1466
+    lng: -21.9426
+    date: 2024-08-03..2024-08-04
+
+  - place: Þingvellir
+    lat: 64.2559
+    lng: -21.1295
+    date: 2024-08-04
+
+  - place: Vík
+    lat: 63.4186
+    lng: -19.006
+    date: 2024-08-05
+
+  - place: Jökulsárlón
+    lat: 64.0784
+    lng: -16.2306
+    date: 2024-08-06..2024-08-07

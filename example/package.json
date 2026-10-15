@@ -1,0 +1,17 @@
+{
+  "name": "my-travels",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "travel-history dev",
+    "build": "travel-history build",
+    "preview": "travel-history preview",
+    "check": "travel-history check",
+    "photos": "travel-history photos",
+    "import": "travel-history import",
+    "stats-image": "travel-history stats-image"
+  },
+  "dependencies": {
+    "travel-history": "github:thedylone/travel-history"
+  }
+}

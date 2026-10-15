@@ -5,5 +5,7 @@ declare module "virtual:travel-data" {
     export default data;
 }
 
-/** The site's address without the scheme, from package.json "homepage". */
+/** The site's address without the scheme, from site.yaml "url"; empty if it has none. */
 declare const __SITE_URL__: string;
+/** From site.yaml "title". */
+declare const __SITE_TITLE__: string;

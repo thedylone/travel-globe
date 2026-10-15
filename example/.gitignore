@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# original, full-size photos: large, and they contain GPS data (see the engine's README, "Photos")
+photos/

@@ -1,0 +1,11 @@
+# Settings for the site. Every line is optional.
+
+# Shown at the top of the trip list and in the browser tab.
+title: Travel History
+# Whose travels these are, for link previews: "Sam's travels on an interactive globe".
+name: Sam
+# Where the site will be deployed. Its path ("/travel-history/") is the base path the site is built for,
+# and it's printed on the stats image. Leave it out to serve the site from the root of a domain.
+# url: https://<your-github-name>.github.io/<repo-name>
+# Social handle for link previews.
+# twitter: "@sam"
