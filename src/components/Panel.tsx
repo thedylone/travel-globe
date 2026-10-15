@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { formatDateRange, yearOf } from "../lib/dates";
+import type { TravelStats } from "../lib/stats";
 import type { Trip } from "../types";
 import type { GlobeSettings } from "./GlobeView";
 
@@ -12,7 +13,7 @@ interface Props {
     focus?: string;
     onFocus: (tripId: string) => void;
     colors: Map<string, string>;
-    stats: { places: number; countries: number; km: number };
+    stats: TravelStats;
     settings: GlobeSettings;
     setSettings: (next: GlobeSettings) => void;
 }
@@ -73,7 +74,7 @@ export const Panel = (props: Props) => {
                 <header className="panel__header">
                     <h1>Travel History</h1>
                     <p className="panel__stats">
-                        {count(shown, "trip")} · {count(stats.countries, "country", "countries")} ·{" "}
+                        {count(shown, "trip")} · {count(stats.countries.length, "country", "countries")} ·{" "}
                         {count(stats.places, "place")} · {Math.round(stats.km).toLocaleString()} km
                     </p>
                 </header>

@@ -88,6 +88,8 @@ interface Props {
     visitedCountries: ReadonlySet<string>;
     /** Space taken by the panel and timeline, so the globe centres in what's left. */
     inset: { left: number; bottom: number };
+    /** False while the 2D map is showing: hide the globe and stop rendering it. */
+    active: boolean;
     onOpen: (visits: Visit[], initial: Visit) => void;
 }
 
@@ -104,7 +106,7 @@ const useWindowSize = () => {
 const latest = (visits: Visit[]) => visits[visits.length - 1];
 
 export const GlobeView = (props: Props) => {
-    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, visitedCountries, inset, onOpen } = props;
+    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, visitedCountries, inset, active, onOpen } = props;
     const globe = useRef<GlobeMethods | undefined>(undefined);
     const win = useWindowSize();
     const width = Math.max(1, win.width - inset.left);
@@ -243,6 +245,11 @@ export const GlobeView = (props: Props) => {
         [visitedCountries]
     );
 
+    useEffect(() => {
+        if (active) globe.current?.resumeAnimation();
+        else globe.current?.pauseAnimation();
+    }, [active]);
+
     // Scrolling over a pin should still zoom the globe.
     const onWheel = (e: React.WheelEvent) => {
         const canvas = (e.currentTarget as HTMLElement).querySelector("canvas");
@@ -252,7 +259,7 @@ export const GlobeView = (props: Props) => {
     return (
         <div
             className={`globe${radius < 1 ? " globe--labels" : ""}`}
-            style={{ left: inset.left, width, height }}
+            style={{ left: inset.left, width, height, visibility: active ? undefined : "hidden" }}
             onWheel={onWheel}
         >
             <Globe

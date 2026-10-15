@@ -2,14 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import data from "virtual:travel-data";
 import { type GlobeHandle, type GlobeSettings, GlobeView, type View } from "./components/GlobeView";
 import { Panel } from "./components/Panel";
+import { FlatMap } from "./components/FlatMap";
 import { PlaceDialog } from "./components/PlaceDialog";
+import { ShareDialog } from "./components/ShareDialog";
 import { Timeline } from "./components/Timeline";
 import { viewFor } from "./lib/cluster";
 import { tripColors } from "./lib/colors";
 import { formatDateRange } from "./lib/dates";
-import { distanceKm, type LatLng } from "./lib/geo";
+import type { LatLng } from "./lib/geo";
 import { buildPlaces, filterPlaces, findPlace, type Visit } from "./lib/places";
 import { parseHash, type Route, toHash } from "./lib/route";
+import { computeStats } from "./lib/stats";
 import type { Trip } from "./types";
 
 const { trips, bases } = data;
@@ -63,9 +66,16 @@ const useHeight = (el: HTMLElement | null) => {
 };
 
 const tripPoints = (trip: Trip): LatLng[] => trip.stops;
-const tripKm = (trip: Trip) => {
-    const pts: LatLng[] = [...(trip.from ? [trip.from] : []), ...trip.stops, ...(trip.to ? [trip.to] : [])];
-    return pts.slice(1).reduce((km, p, i) => km + distanceKm(pts[i], p), 0);
+
+/** 3D globe or flat 2D map; remembered per browser. */
+type ViewMode = "globe" | "flat";
+const VIEW_KEY = "travel-history:view";
+const loadView = (): ViewMode => {
+    try {
+        return localStorage.getItem(VIEW_KEY) === "flat" ? "flat" : "globe";
+    } catch {
+        return "globe";
+    }
 };
 
 const visitFor = (ref: Route["stop"]): Visit | undefined => {
@@ -91,6 +101,15 @@ export const App = () => {
     const [panelOpen, setPanelOpen] = useState(() => !isNarrow());
     const [timelineOpen, setTimelineOpen] = useState(false);
     const [playing, setPlaying] = useState(false);
+    const [view, setView] = useState(loadView);
+    const [shareOpen, setShareOpen] = useState(false);
+    useEffect(() => {
+        try {
+            localStorage.setItem(VIEW_KEY, view);
+        } catch {
+            // Not remembered; fine.
+        }
+    }, [view]);
     // The visits listed in the open dialog (a place's visits, or a whole tight cluster).
     const [dialogVisits, setDialogVisits] = useState<Visit[] | null>(null);
     const globe = useRef<GlobeHandle>(null);
@@ -133,14 +152,8 @@ export const App = () => {
         () => new Set(visibleTrips.flatMap((t) => t.stops.flatMap((s) => (s.country ? [s.country] : [])))),
         [visibleTrips]
     );
-    const stats = useMemo(
-        () => ({
-            places: places.length,
-            countries: visitedCountries.size,
-            km: visibleTrips.reduce((km, t) => km + tripKm(t), 0),
-        }),
-        [places, visibleTrips, visitedCountries]
-    );
+    const stats = useMemo(() => computeStats(visibleTrips), [visibleTrips]);
+    const visibleStops = useMemo(() => visibleTrips.flatMap((t) => t.stops), [visibleTrips]);
 
     const setFocus = useCallback((tripId: string | undefined) => {
         setRoute((r) => ({ ...r, focus: tripId }));
@@ -227,6 +240,7 @@ export const App = () => {
             else if (key === "d") setSettings((s) => ({ ...s, night: !s.night }));
             else if (key === "m") setSettings((s) => ({ ...s, style: s.style === "map" ? "satellite" : "map" }));
             else if (key === "b") setSettings((s) => ({ ...s, borders: !s.borders }));
+            else if (key === "v") setView((v) => (v === "globe" ? "flat" : "globe"));
             else if (key === "t") toggleTimeline();
             else if (key === "p") play(!playing);
             else if (key === "escape" && route.focus) userFocus(undefined);
@@ -249,8 +263,29 @@ export const App = () => {
                 highlight={openVisit?.stop}
                 visitedCountries={visitedCountries}
                 inset={inset}
+                active={view === "globe"}
                 onOpen={onOpen}
             />
+            {view === "flat" && (
+                <FlatMap
+                    trips={visibleTrips}
+                    places={places}
+                    colors={colors}
+                    focusTrip={focusTrip}
+                    stats={stats}
+                    inset={inset}
+                    onOpen={onOpen}
+                    onShare={() => setShareOpen(true)}
+                />
+            )}
+            <div className="view-switch" role="radiogroup" aria-label="Map view">
+                {(["globe", "flat"] as const).map((v) => (
+                    <label key={v} title={`${v === "globe" ? "3D globe" : "2D map"} (V)`}>
+                        <input type="radio" name="view" checked={view === v} onChange={() => setView(v)} />
+                        {v === "globe" ? "3D" : "2D"}
+                    </label>
+                ))}
+            </div>
             <Panel
                 open={panelOpen}
                 onToggle={togglePanel}
@@ -297,6 +332,7 @@ export const App = () => {
                     <button type="button" onClick={() => userFocus(undefined)}>All trips</button>
                 </div>
             )}
+            {shareOpen && <ShareDialog stats={stats} stops={visibleStops} onClose={() => setShareOpen(false)} />}
             {openVisit && (
                 <PlaceDialog
                     visits={dialogList}

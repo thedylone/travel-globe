@@ -11,8 +11,10 @@ Trips and places I've visited, on an interactive 3D globe:
 - **Satellite** imagery loads as map tiles, so it gets sharper as you zoom in (down to ~10 m per pixel).
   **Map** style draws country borders as vectors (crisp at any zoom) and shades the countries you've been to;
   **Borders** overlays them on the satellite view.
-- Keys: **R** rotate, **D** day/night, **M** satellite/map, **B** borders, **T** timeline, **P** play,
-  **Esc** back to all trips, **← →** photos.
+- **2D** view: a flat world map with visited countries shaded, your places, and the headline numbers.
+  **Share image** turns it into a PNG sized for an Instagram post, a story or a link preview.
+- Keys: **R** rotate, **D** day/night, **M** satellite/map, **B** borders, **V** 3D/2D, **T** timeline,
+  **P** play, **Esc** back to all trips, **← →** photos.
 
 ```sh
 npm install
@@ -104,13 +106,35 @@ git ls-tree -d -z --name-only fb00002 public/images/ | xargs -0 git archive fb00
 | `npm run photos` | make web versions of new photos in `photos/` |
 | `npm run check` | validate `data/`, look up new places |
 | `npm test` | unit tests |
-| `npm run build` | production build into `dist/` |
+| `npm run build` | production build into `dist/`, including the stats images |
+| `npm run stats-image -- <folder>` | render just the stats images |
 
 ## Deploying
 
 Pushing to `main` builds and deploys with GitHub Actions (`.github/workflows/deploy.yml`); pull requests are
 built and tested but not deployed. One-time setup: repo *Settings › Pages › Build and deployment › Source:
 GitHub Actions*. `npm run deploy` still publishes `dist/` to the `gh-pages` branch by hand if needed.
+
+## Stats image
+
+Every build renders the stats card into the site, so these always show the latest numbers:
+
+| | |
+| --- | --- |
+| https://thedylone.github.io/travel-history/stats.png | 1080×1350, Instagram post |
+| https://thedylone.github.io/travel-history/stats-story.png | 1080×1920, stories |
+| https://thedylone.github.io/travel-history/stats-wide.png | 1200×630, also the site's link preview |
+
+Embed one anywhere that takes an image URL, e.g. in a GitHub profile README:
+
+```md
+[![My travels](https://thedylone.github.io/travel-history/stats.png)](https://thedylone.github.io/travel-history)
+```
+
+`npm run stats-image -- <folder>` renders them locally. The card is drawn by `src/lib/share.ts`, shared with the
+in-app **Share image** button, in the bundled [Bricolage Grotesque](https://github.com/ateliertriay/bricolage)
+font (`public/fonts`, SIL Open Font License). A country is shaded where you have a stop on or within ~1,200 km of
+that land mass, so a trip to Paris doesn't colour in French Guiana.
 
 ## Imagery and borders
 
@@ -134,5 +158,5 @@ photos/               original photos (not committed)
 public/photos/        web versions (committed)
 scripts/              import, photo processing, data loading and validation
 src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
-src/components/       globe, trip panel, timeline, photo dialog
+src/components/       globe, 2D map, trip panel, timeline, photo and share dialogs
 ```

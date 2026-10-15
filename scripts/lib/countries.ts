@@ -17,6 +17,9 @@ const load = () => {
     return countries;
 };
 
+/** All country shapes (Natural Earth 1:50m), as drawn on the globe and the share image. */
+export const countryFeatures = () => load();
+
 const NEAR_COAST_RAD = (0.3 * Math.PI) / 180; // ~33 km
 
 const vertices = (g: Geometry): Position[] =>

@@ -1,0 +1,121 @@
+import { useEffect, useRef, useState } from "react";
+import { loadCountries } from "../lib/borders";
+import { shareFontDataUrl, svgToPng } from "../lib/rasterize";
+import { renderShareSvg, SHARE_SIZES, type ShareSize } from "../lib/share";
+import type { TravelStats } from "../lib/stats";
+
+interface Props {
+    stats: TravelStats;
+    stops: { lat: number; lng: number; country?: string }[];
+    onClose: () => void;
+}
+
+/** Published by the deploy (scripts/stats-image.ts); always shows every trip. */
+const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats.png", story: "stats-story.png", wide: "stats-wide.png" };
+const siteImage = (size: ShareSize) => `https://${__SITE_URL__}/${STATIC_IMAGES[size]}`;
+
+export const ShareDialog = ({ stats, stops, onClose }: Props) => {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const [size, setSize] = useState<ShareSize>("post");
+    const [png, setPng] = useState<{ blob: Blob; url: string } | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        const d = dialog.current;
+        if (d && !d.open) d.showModal();
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        let made: string | undefined;
+        setPng(null);
+        setError(null);
+        (async () => {
+            const [countries, fontDataUrl] = await Promise.all([loadCountries(), shareFontDataUrl().catch(() => undefined)]);
+            const svg = renderShareSvg({ countries, stops, stats, size, url: __SITE_URL__, fontDataUrl });
+            const { width, height } = SHARE_SIZES[size];
+            const blob = await svgToPng(svg, width, height);
+            if (cancelled) return;
+            made = URL.createObjectURL(blob);
+            setPng({ blob, url: made });
+        })().catch((e: Error) => !cancelled && setError(e.message));
+        return () => {
+            cancelled = true;
+            if (made) URL.revokeObjectURL(made);
+        };
+    }, [size, stats, stops]);
+
+    const fileName = `travel-history-${size}.png`;
+    const file = png ? new File([png.blob], fileName, { type: "image/png" }) : null;
+    const canShare = !!file && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(siteImage(size));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            document.getElementById("share-link")?.focus();
+        }
+    };
+
+    return (
+        <dialog
+            ref={dialog}
+            className="share"
+            onClose={onClose}
+            onClick={(e) => e.target === e.currentTarget && dialog.current?.close()}
+            aria-labelledby="share-title"
+        >
+            <div className="share__body">
+                <header className="share__header">
+                    <h2 id="share-title">Share image</h2>
+                    <button type="button" className="place__close" onClick={() => dialog.current?.close()} aria-label="Close">×</button>
+                </header>
+
+                <div className="share__sizes" role="radiogroup" aria-label="Image size">
+                    {(Object.keys(SHARE_SIZES) as ShareSize[]).map((s) => (
+                        <label key={s}>
+                            <input type="radio" name="share-size" checked={size === s} onChange={() => setSize(s)} />
+                            <span>{SHARE_SIZES[s].label}</span>
+                            <small>{SHARE_SIZES[s].hint}</small>
+                        </label>
+                    ))}
+                </div>
+
+                <div className="share__preview" style={{ aspectRatio: `${SHARE_SIZES[size].width} / ${SHARE_SIZES[size].height}` }}>
+                    {png ? <img src={png.url} alt="Preview of the share image" /> : <p>{error ? `Couldn't make the image: ${error}` : "Drawing…"}</p>}
+                </div>
+
+                <div className="share__actions">
+                    {canShare && (
+                        <button
+                            type="button"
+                            className="share__primary"
+                            onClick={() => navigator.share({ files: [file!], title: "Travel history" }).catch(() => {})}
+                        >
+                            Share…
+                        </button>
+                    )}
+                    <a
+                        className={canShare ? "share__secondary" : "share__primary"}
+                        href={png?.url}
+                        download={fileName}
+                        aria-disabled={!png}
+                    >
+                        Download PNG
+                    </a>
+                </div>
+
+                <div className="share__link">
+                    <label htmlFor="share-link">Link that always shows the latest image (all trips; updated whenever the site deploys)</label>
+                    <div>
+                        <input id="share-link" readOnly value={siteImage(size)} onFocus={(e) => e.target.select()} />
+                        <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+                    </div>
+                </div>
+            </div>
+        </dialog>
+    );
+};
