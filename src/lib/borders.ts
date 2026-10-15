@@ -62,3 +62,26 @@ export const visitedParts = (parts: CountryPart[], stops: { lat: number; lng: nu
     }
     return ids;
 };
+
+export type ShadedCountry = Feature<Geometry, { name: string; visited: boolean }>;
+
+/**
+ * Countries regrouped for drawing as few shapes as possible: each country is one
+ * feature, or two when only some of its land masses are visited (see visitedParts).
+ */
+export const shadeCountries = (countries: CountryFeature[], stops: { lat: number; lng: number; country?: string }[]): ShadedCountry[] => {
+    const visitedNames = new Set(stops.flatMap((s) => (s.country ? [s.country] : [])));
+    return countries.flatMap((c): ShadedCountry[] => {
+        const name = c.properties.name;
+        if (!visitedNames.has(name)) return [{ ...c, properties: { name, visited: false } }];
+        const parts = splitCountries([c]);
+        const visited = visitedParts(parts, stops);
+        const group = (v: boolean): ShadedCountry[] => {
+            const coords = parts.filter((p) => visited.has(p.properties.id) === v).map((p) => p.geometry.coordinates);
+            return coords.length
+                ? [{ type: "Feature", properties: { name, visited: v }, geometry: { type: "MultiPolygon", coordinates: coords } }]
+                : [];
+        };
+        return [...group(true), ...group(false)];
+    });
+};
