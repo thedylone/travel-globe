@@ -1,0 +1,6 @@
+# Places trips start from. Use the key in a trip file: `from: home`.
+home:
+  name: london
+  lat: 51.5072
+  lng: -0.1276
+  icon: home

@@ -18,6 +18,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # The site shows this repo's own data (site.yaml, data/, public/photos/) until it moves to its own repo.
+      TRAVEL_HISTORY_DATA: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,6 +32,9 @@ jobs:
       # Every place must already be in data/places.json (run `npm run check` locally to fill it in).
       - run: npm run check -- --offline
       - run: npm run build
+      # The sample trips that come with the engine must build too.
+      - run: npm run check -- --offline --data example
+      - run: npx travel-history build --data example --out ${{ runner.temp }}/example
       # Fails if the globe goes over its draw-call budget (see scripts/perf.ts).
       - run: npx playwright install --with-deps chromium
       - run: npm run perf

@@ -17,7 +17,10 @@ interface Props {
 /** Published by the deploy (scripts/stats-image.ts); always shows every trip. */
 const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats", story: "stats-story", wide: "stats-wide" };
 const imageFile = (size: ShareSize, theme: ShareTheme) => `${STATIC_IMAGES[size]}${theme === "light" ? "-light" : ""}.png`;
-const siteImage = (size: ShareSize, theme: ShareTheme) => `https://${__SITE_URL__}/${imageFile(size, theme)}`;
+const siteImage = (size: ShareSize, theme: ShareTheme) =>
+    __SITE_URL__
+        ? `https://${__SITE_URL__}/${imageFile(size, theme)}`
+        : new URL(`${import.meta.env.BASE_URL}${imageFile(size, theme)}`, location.href).href;
 
 /**
  * The image this deploy published, if it's there (it isn't on the dev server).
