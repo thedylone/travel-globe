@@ -1,10 +1,11 @@
 import { type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { MeshPhongMaterial, type Object3D } from "three";
-import { borderLines, type CountryFeature, loadCountries, shadeCountries, type ShadedCountry } from "../lib/borders";
+import { CanvasTexture, Mesh, MeshLambertMaterial, MeshPhongMaterial, type Object3D, SphereGeometry, SRGBColorSpace, type Texture, TextureLoader } from "three";
+import { borderLines, type CountryFeature, loadCountries, shadeCountries } from "../lib/borders";
 import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
 import { withAlpha } from "../lib/colors";
 import type { LatLng } from "../lib/geo";
+import { drawMapCanvas, type MapPalette } from "../lib/mapTexture";
 import type { Place, Visit } from "../lib/places";
 import type { Base, Trip } from "../types";
 import { baseElement, clusterElement } from "./pins";
@@ -28,7 +29,15 @@ export interface GlobeSettings {
     borders: boolean;
 }
 
-const STARS = `${import.meta.env.BASE_URL}textures/stars.jpg`;
+const tex = (name: string) => `${import.meta.env.BASE_URL}textures/${name}`;
+const STARS = tex("stars.jpg");
+/** Small whole-Earth images shown under the tiles, so the globe isn't black while they load. */
+const FALLBACK = { day: tex("earth-day-low.jpg"), night: tex("earth-night-low.jpg") };
+/**
+ * A tile pixel may cover up to this many screen pixels before the next level loads.
+ * Above 1 is slightly soft but needs far fewer tiles (each level is 4x as many).
+ */
+const TILE_PIXEL_STRETCH = 1.4;
 
 /**
  * Satellite imagery as map tiles: the globe loads sharper tiles as you zoom in,
@@ -54,10 +63,10 @@ const IMAGERY = {
     },
 };
 
-/** Map style colours per theme. Fills are opaque: transparent ones cost a lot more to draw. */
-const MAP_STYLE = {
-    dark: { ocean: new MeshPhongMaterial({ color: "#0b1a33", shininess: 4 }), land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
-    light: { ocean: new MeshPhongMaterial({ color: "#c4d3e6", shininess: 4 }), land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
+/** Map style colours per theme, painted into the globe's texture. */
+const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
+    dark: { ocean: "#0b1a33", land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
+    light: { ocean: "#c4d3e6", land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
 };
 
 /** Seconds of no interaction before auto-rotate resumes. */
@@ -229,28 +238,82 @@ export const GlobeView = (props: Props) => {
             engine.maxLevel = imagery.maxLevel;
             // Switch to tile level L once one of its pixels would cover a screen pixel
             // (the default switches later, so imagery looks blocky up close).
-            engine.thresholds = Array.from({ length: 30 }, (_, level) => altitudeFor(360 / (256 * 2 ** level), height));
+            engine.thresholds = Array.from({ length: 30 }, (_, level) =>
+                altitudeFor(360 / (256 * 2 ** level) / TILE_PIXEL_STRETCH, height)
+            );
         });
         // The engine only picks tiles when the camera moves: "move" it to where it is.
         g.pointOfView(g.pointOfView());
     }, [satellite, imagery, height]);
 
-    // Map style fills countries (polygons); borders over satellite are just lines (much lighter).
+    // A low-resolution Earth just under the tiles: visible at once, covered as tiles arrive.
+    const fallback = useRef<Mesh | null>(null);
+    useEffect(() => {
+        const g = globe.current;
+        if (!g) return;
+        const r = g.getGlobeRadius();
+        const mesh = new Mesh(new SphereGeometry(r * 0.999, 96, 48), new MeshLambertMaterial({ color: "#000" }));
+        mesh.rotation.y = -Math.PI / 2; // same orientation as the globe's own sphere
+        g.scene().add(mesh);
+        fallback.current = mesh;
+        return () => {
+            g.scene().remove(mesh);
+            mesh.geometry.dispose();
+            (mesh.material as MeshLambertMaterial).map?.dispose();
+            (mesh.material as MeshLambertMaterial).dispose();
+        };
+    }, []);
+    useEffect(() => {
+        const mesh = fallback.current;
+        if (!mesh) return;
+        mesh.visible = satellite;
+        if (!satellite) return;
+        const material = mesh.material as MeshLambertMaterial;
+        let cancelled = false;
+        new TextureLoader().load(FALLBACK[settings.night ? "night" : "day"], (t) => {
+            if (cancelled) return t.dispose();
+            t.colorSpace = SRGBColorSpace;
+            material.map?.dispose();
+            material.map = t;
+            material.color.set("#fff");
+            material.needsUpdate = true;
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [satellite, settings.night]);
+
+    // Map style is one painted texture; borders over satellite are just lines.
     const showCountries = !satellite || settings.borders;
     const [countries, setCountries] = useState<CountryFeature[]>([]);
     useEffect(() => {
         if (showCountries) loadCountries().then(setCountries, () => setCountries([]));
     }, [showCountries]);
-    const lines = useMemo(() => (satellite && settings.borders ? borderLines(countries) : []), [satellite, settings.borders, countries]);
+    // Borders and coastlines as lines, so they stay sharp at any zoom (the painted fills soften up close).
+    const lines = useMemo(() => (showCountries ? borderLines(countries) : []), [showCountries, countries]);
     // Shade the land masses near your stops (not every overseas territory of a visited country).
     const shaded = useMemo(
         () => (satellite || !countries.length ? [] : shadeCountries(countries, trips.flatMap((t) => t.stops))),
         [satellite, countries, trips]
     );
-    const capColor = useCallback(
-        (d: object) => ((d as ShadedCountry).properties.visited ? mapStyle.visited : mapStyle.land),
-        [mapStyle]
-    );
+    const mapMaterial = useMemo(() => new MeshPhongMaterial({ color: "#fff", shininess: 4 }), []);
+    useEffect(() => {
+        const g = globe.current;
+        if (satellite || !g) return;
+        // Plain ocean until the borders arrive, then the painted map.
+        mapMaterial.map?.dispose();
+        mapMaterial.map = null;
+        mapMaterial.color.set(shaded.length ? "#fff" : mapStyle.ocean);
+        if (shaded.length) {
+            // 8192 px wide where the GPU allows it (~5 km per pixel), else 4096.
+            const width = g.renderer().capabilities.maxTextureSize >= 16384 ? 8192 : 4096;
+            const texture: Texture = new CanvasTexture(drawMapCanvas(shaded, mapStyle, width));
+            texture.colorSpace = SRGBColorSpace;
+            texture.anisotropy = g.renderer().capabilities.getMaxAnisotropy();
+            mapMaterial.map = texture;
+        }
+        mapMaterial.needsUpdate = true;
+    }, [satellite, shaded, mapStyle, mapMaterial]);
 
     useEffect(() => {
         if (active) globe.current?.resumeAnimation();
@@ -275,22 +338,14 @@ export const GlobeView = (props: Props) => {
                 height={height}
                 globeImageUrl={null}
                 globeTileEngineUrl={satellite ? imagery.url : null}
-                globeMaterial={mapStyle.ocean}
+                globeMaterial={mapMaterial}
                 backgroundImageUrl={STARS}
                 onZoom={onZoom}
-                polygonsData={shaded}
-                polygonCapColor={capColor}
-                // No side walls: a falsy colour skips building them.
-                polygonSideColor={() => ""}
-                polygonStrokeColor={() => mapStyle.border}
-                polygonAltitude={0.002}
-                polygonLabel={(d: object) => (d as CountryFeature).properties.name}
-                polygonsTransitionDuration={0}
                 pathsData={lines}
                 pathPointLat={(p: unknown) => (p as number[])[1]}
                 pathPointLng={(p: unknown) => (p as number[])[0]}
                 pathPointAlt={0.001}
-                pathColor={() => "rgba(255, 255, 255, 0.5)"}
+                pathColor={() => (satellite ? "rgba(255, 255, 255, 0.5)" : mapStyle.border)}
                 pathTransitionDuration={0}
                 htmlElementsData={htmlData}
                 htmlElement={(d) => pinCache.current.get((d as HtmlDatum).key)!}
