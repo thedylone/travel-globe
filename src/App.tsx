@@ -3,6 +3,7 @@ import data from "virtual:travel-data";
 import { type GlobeHandle, type GlobeSettings, GlobeView, type View } from "./components/GlobeView";
 import { Panel } from "./components/Panel";
 import { FlatMap } from "./components/FlatMap";
+import { LayersMenu } from "./components/LayersMenu";
 import { PlaceDialog } from "./components/PlaceDialog";
 import { ShareDialog } from "./components/ShareDialog";
 import { Timeline } from "./components/Timeline";
@@ -277,14 +278,6 @@ export const App = () => {
                     onShare={() => setShareOpen(true)}
                 />
             )}
-            <div className="view-switch" role="radiogroup" aria-label="Map view">
-                {(["globe", "flat"] as const).map((v) => (
-                    <label key={v} title={`${v === "globe" ? "3D globe" : "2D map"} (V)`}>
-                        <input type="radio" name="view" checked={view === v} onChange={() => setView(v)} />
-                        {v === "globe" ? "3D" : "2D"}
-                    </label>
-                ))}
-            </div>
             <Panel
                 open={panelOpen}
                 onToggle={togglePanel}
@@ -295,23 +288,41 @@ export const App = () => {
                 onFocus={toggleFocus}
                 colors={colors}
                 stats={stats}
-                settings={settings}
-                setSettings={setSettings}
-                themePref={themePref}
-                setThemePref={setThemePref}
             />
-            <button
-                type="button"
-                className="timeline-toggle"
-                onClick={toggleTimeline}
-                aria-expanded={timelineOpen}
-                title="Timeline (T)"
-            >
-                <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18">
-                    <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M4 7h16M4 12h10M4 17h13" />
-                </svg>
-                <span className="timeline-toggle__label">Timeline</span>
-            </button>
+            {/* Top right, like a map app: timeline, 3D/2D, layers. */}
+            <div className="toolbar">
+                <button
+                    type="button"
+                    className="timeline-toggle"
+                    onClick={toggleTimeline}
+                    aria-expanded={timelineOpen}
+                    title="Timeline (T)"
+                >
+                    {/* A calendar */}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="5" width="18" height="16" rx="2" />
+                        <path d="M3 10h18M8 3v4M16 3v4" />
+                        <path d="M7.5 14h2M11 14h2M14.5 14h2M7.5 17.5h2M11 17.5h2" />
+                    </svg>
+                    <span className="timeline-toggle__label">Timeline</span>
+                </button>
+                <div className="view-switch" role="radiogroup" aria-label="Map view">
+                    {(["globe", "flat"] as const).map((v) => (
+                        <label key={v} title={`${v === "globe" ? "3D globe" : "2D map"} (V)`}>
+                            <input type="radio" name="view" checked={view === v} onChange={() => setView(v)} />
+                            {v === "globe" ? "3D" : "2D"}
+                        </label>
+                    ))}
+                </div>
+                <LayersMenu
+                    settings={settings}
+                    setSettings={setSettings}
+                    themePref={themePref}
+                    setThemePref={setThemePref}
+                    theme={theme}
+                    stops={visibleStops}
+                />
+            </div>
             <Timeline
                 ref={setTimelineEl}
                 open={timelineOpen}
@@ -333,7 +344,15 @@ export const App = () => {
                     <button type="button" onClick={() => userFocus(undefined)}>All trips</button>
                 </div>
             )}
-            {shareOpen && <ShareDialog stats={stats} stops={visibleStops} theme={theme} onClose={() => setShareOpen(false)} />}
+            {shareOpen && (
+                <ShareDialog
+                    stats={stats}
+                    stops={visibleStops}
+                    theme={theme}
+                    filtered={visibleTrips.length < trips.length}
+                    onClose={() => setShareOpen(false)}
+                />
+            )}
             {openVisit && (
                 <PlaceDialog
                     visits={dialogList}
