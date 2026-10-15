@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type CountryFeature, loadCountries, splitCountries, visitedParts } from "../lib/borders";
 import type { LatLng } from "../lib/geo";
 import type { Place, Visit } from "../lib/places";
-import { countryLabel, plural, type TravelStats } from "../lib/stats";
+import { countryLabel, percent, plural, type TravelStats } from "../lib/stats";
 import type { Trip } from "../types";
 
 interface Props {
@@ -41,6 +41,9 @@ const useWindowSize = () => {
     }, []);
     return size;
 };
+
+/** Fits the compact continent bars. */
+const SHORT_CONTINENT: Record<string, string> = { "North America": "N. America", "South America": "S. America" };
 
 const routeOf = (trip: Trip): LatLng[] => [...(trip.from ? [trip.from] : []), ...trip.stops, ...(trip.to ? [trip.to] : [])];
 
@@ -238,16 +241,33 @@ export const FlatMap = ({ trips, places, colors, focusTrip, stats, inset, onOpen
             </div>
 
             <section className="flat__card" aria-label="Stats" ref={card}>
-                <p className="flat__headline">
-                    <strong>{stats.countries.length}</strong> {stats.countries.length === 1 ? "country" : "countries"}
-                </p>
+                <div>
+                    <p className="flat__headline">
+                        <strong>{stats.countries.length}</strong> {stats.countries.length === 1 ? "country" : "countries"}
+                    </p>
+                    <p className="flat__share-line">
+                        <strong>{percent(stats.worldShare)}</strong> of the world's countries
+                    </p>
+                </div>
                 <dl className="flat__numbers">
                     <div><dt>Trips</dt><dd>{stats.trips}</dd></div>
                     <div><dt>Places</dt><dd>{stats.places}</dd></div>
                     <div><dt>Days away</dt><dd>{stats.days}</dd></div>
                     <div><dt>Km</dt><dd>{Math.round(stats.km).toLocaleString("en-GB")}</dd></div>
                 </dl>
-                <p className="flat__countries-list">{stats.countries.map(countryLabel).join(" · ")}</p>
+                <ul className="flat__continents" aria-label="Countries visited by continent">
+                    {stats.continents.map((c) => (
+                        <li key={c.name}>
+                            <span className="flat__continent-name" title={c.name}>{SHORT_CONTINENT[c.name] ?? c.name}</span>
+                            <span className="flat__continent-count">
+                                <strong>{c.visited}</strong> / {c.total}
+                            </span>
+                            <span className="flat__bar" aria-hidden="true">
+                                <span style={{ width: `${c.total ? (c.visited / c.total) * 100 : 0}%` }} />
+                            </span>
+                        </li>
+                    ))}
+                </ul>
                 <button type="button" className="flat__share" onClick={onShare}>Share image</button>
             </section>
         </div>

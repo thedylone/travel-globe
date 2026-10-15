@@ -8,6 +8,7 @@ import { renderShareSvg } from "../../src/lib/share.ts";
 import { computeStats } from "../../src/lib/stats.ts";
 import type { Trip } from "../../src/types.ts";
 import { countryAt, countryFeatures } from "./countries.ts";
+import { worldInfo } from "./world.ts";
 import { loadTravelData } from "./load.ts";
 import { groupIntoStops } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
@@ -167,21 +168,32 @@ describe("renderShareSvg", () => {
         { id: "a", title: "a", start: "2023-01-01", end: "2023-01-03", stops: [stop("paris", 48.86, 2.35, "France", "2023-01-01")] },
         { id: "b", title: "b", start: "2024-05-01", end: "2024-05-01", stops: [stop("tokyo", 35.68, 139.69, "Japan", "2024-05-01")] },
     ];
-    const stats = computeStats(trips);
+    const stats = computeStats(trips, worldInfo(["France", "Japan"]));
+    const input = { countries: countryFeatures(), stops: trips.flatMap((t) => t.stops), stats, url: "example.com" };
 
-    it("draws the numbers, the years and the countries", () => {
-        const svg = renderShareSvg({ countries: countryFeatures(), stops: trips.flatMap((t) => t.stops), stats, size: "post", url: "example.com" });
+    it("works out continents and the share of the world", () => {
+        expect(stats.worldShare).toBeCloseTo(2 / 195);
+        expect(stats.continents.find((c) => c.name === "Europe")).toMatchObject({ visited: 1, total: 45 });
+        expect(stats.continents.find((c) => c.name === "Asia")).toMatchObject({ visited: 1, total: 47 });
+        expect(stats.continents.reduce((n, c) => n + c.total, 0)).toBe(195);
+    });
+
+    it("draws the numbers, the years, the share and every continent", () => {
+        const svg = renderShareSvg({ ...input, size: "post", theme: "dark" });
         expect(svg).toMatch(/^<svg [^>]*width="1080" height="1350"/);
         expect(svg).toContain(">2</tspan>"); // countries
         expect(svg).toContain("2023–2024");
-        expect(svg).toContain("France  ·  Japan");
+        expect(svg).toContain(">1%</tspan> of the world");
+        for (const c of ["EUROPE", "ASIA", "AFRICA", "NORTH AMERICA", "SOUTH AMERICA", "OCEANIA"]) expect(svg).toContain(c);
         expect(svg).toContain("example.com");
         expect((svg.match(/<circle /g) ?? []).length).toBe(2);
     });
 
-    it("lists only as many countries as fit, then says how many more", () => {
-        const many = Array.from({ length: 60 }, (_, i) => `Country number ${i}`);
-        const svg = renderShareSvg({ countries: [], stops: [], stats: { ...stats, countries: many }, size: "post", url: "" });
-        expect(svg).toMatch(/\+\d+ more/);
+    it("has a light version", () => {
+        const dark = renderShareSvg({ ...input, size: "story", theme: "dark" });
+        const light = renderShareSvg({ ...input, size: "story", theme: "light" });
+        expect(dark).toContain('fill="#0b1220"');
+        expect(light).toContain('fill="#f5f7fb"');
+        expect(light).not.toContain('fill="#0b1220"');
     });
 });

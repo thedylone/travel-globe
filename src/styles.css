@@ -17,10 +17,40 @@
     --text-muted: #9aa5b8;
     --border: rgb(255 255 255 / 0.12);
     --accent: #6cb6ff;
+    --on-accent: #04101f;
+    --accent-soft: rgb(108 182 255 / 0.14);
+    --hover-strong: rgb(255 255 255 / 0.15);
+    --grid-line: rgb(255 255 255 / 0.06);
+    --tip-bg: rgb(10 14 24 / 0.85);
+    --stage: #0b0f18;
+    --backdrop: rgb(0 0 0 / 0.55);
     --radius: 12px;
     --shadow: 0 8px 32px rgb(0 0 0 / 0.45);
     --panel-width: 300px;
     color-scheme: dark;
+}
+
+/* Light theme (src/lib/theme.ts sets data-theme). The globe itself stays in dark space. */
+:root[data-theme="light"] {
+    --land: #d6dde8;
+    --visited: #2f7fd6;
+    --bg: #eef2f7;
+    --surface: rgb(255 255 255 / 0.88);
+    --surface-solid: #ffffff;
+    --surface-hover: rgb(15 23 42 / 0.06);
+    --text: #0e1626;
+    --text-muted: #5d6a82;
+    --border: rgb(15 23 42 / 0.12);
+    --accent: #2f7fd6;
+    --on-accent: #ffffff;
+    --accent-soft: rgb(47 127 214 / 0.12);
+    --hover-strong: rgb(15 23 42 / 0.1);
+    --grid-line: rgb(15 23 42 / 0.07);
+    --tip-bg: rgb(255 255 255 / 0.96);
+    --stage: #e6eaf0;
+    --backdrop: rgb(15 23 42 / 0.35);
+    --shadow: 0 8px 32px rgb(15 23 42 / 0.18);
+    color-scheme: light;
 }
 
 * {
@@ -160,8 +190,9 @@ input[type="checkbox"] {
     transform: translateY(-50%);
     padding: 2px 7px;
     border-radius: 6px;
+    /* Over the globe, which is dark in both themes. */
     background: rgb(10 14 24 / 0.78);
-    color: var(--text);
+    color: #eef1f6;
     font-size: 12px;
     white-space: nowrap;
     pointer-events: none;
@@ -321,7 +352,7 @@ input[type="checkbox"] {
 }
 
 .trip[aria-current="true"] {
-    background: rgb(108 182 255 / 0.16);
+    background: var(--accent-soft);
 }
 
 .trip__name {
@@ -471,7 +502,7 @@ kbd {
 }
 
 .focus-banner button:hover {
-    background: rgb(255 255 255 / 0.15);
+    background: var(--hover-strong);
 }
 
 /* ---------- timeline ---------- */
@@ -554,7 +585,7 @@ kbd {
 .timeline__play[aria-pressed="true"] {
     background: var(--accent);
     border-color: var(--accent);
-    color: #04101f;
+    color: var(--on-accent);
 }
 
 .timeline__close {
@@ -592,7 +623,7 @@ kbd {
 .timeline__track {
     position: relative;
     height: calc(var(--lanes, 1) * (var(--lane-height) + 3px) + 9px);
-    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+    border-bottom: 1px solid var(--grid-line);
 }
 
 .timeline__row--months .timeline__track {
@@ -613,7 +644,7 @@ kbd {
     top: 0;
     bottom: 0;
     width: 1px;
-    background: rgb(255 255 255 / 0.06);
+    background: var(--grid-line);
 }
 
 .timeline__bar {
@@ -650,7 +681,7 @@ kbd {
 }
 
 .timeline__bar[aria-current="true"] {
-    box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px #fff;
+    box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--text);
     z-index: 1;
 }
 
@@ -749,7 +780,7 @@ kbd {
 }
 
 .flat__place:hover {
-    stroke: #fff;
+    stroke: var(--text);
     stroke-width: 2px;
 }
 
@@ -758,7 +789,9 @@ kbd {
     z-index: 2;
     padding: 3px 8px;
     border-radius: 6px;
-    background: rgb(10 14 24 / 0.85);
+    background: var(--tip-bg);
+    color: var(--text);
+    box-shadow: var(--shadow);
     font-size: 13px;
     white-space: nowrap;
     pointer-events: none;
@@ -850,11 +883,67 @@ kbd {
     font-variant-numeric: tabular-nums;
 }
 
-.flat__countries-list {
-    margin: 0;
+.flat__share-line {
+    margin: 2px 0 0;
     font-size: 13px;
     color: var(--text-muted);
-    text-wrap: pretty;
+}
+
+.flat__share-line strong {
+    color: var(--visited);
+}
+
+.flat__continents {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 18px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.flat__continents li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 3px 8px;
+}
+
+.flat__continent-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.flat__continent-count {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+.flat__continent-count strong {
+    color: var(--text);
+}
+
+.flat__bar {
+    grid-column: 1 / -1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--land);
+    overflow: hidden;
+}
+
+.flat__bar span {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: var(--visited);
 }
 
 .flat__share,
@@ -868,7 +957,7 @@ kbd {
     border: 1px solid var(--accent);
     border-radius: 999px;
     background: var(--accent);
-    color: #04101f;
+    color: var(--on-accent);
     font-weight: 600;
     text-decoration: none;
 }
@@ -897,7 +986,7 @@ kbd {
 }
 
 .share::backdrop {
-    background: rgb(0 0 0 / 0.55);
+    background: var(--backdrop);
 }
 
 .share__body {
@@ -936,7 +1025,7 @@ kbd {
 
 .share__sizes label:has(input:checked) {
     border-color: var(--accent);
-    background: rgb(108 182 255 / 0.12);
+    background: var(--accent-soft);
 }
 
 .share__sizes label:has(input:focus-visible) {
@@ -966,7 +1055,7 @@ kbd {
     margin: 0 auto;
     max-width: 100%;
     border-radius: 8px;
-    background: #0b1220;
+    background: var(--stage);
     overflow: hidden;
 }
 
@@ -1044,7 +1133,7 @@ kbd {
 }
 
 .place::backdrop {
-    background: rgb(0 0 0 / 0.55);
+    background: var(--backdrop);
     backdrop-filter: blur(2px);
 }
 
@@ -1156,7 +1245,7 @@ kbd {
     place-items: center;
     height: min(62dvh, 640px);
     border-radius: 8px;
-    background: #0b0f18;
+    background: var(--stage);
     overflow: hidden;
     touch-action: pan-y;
 }
@@ -1218,7 +1307,7 @@ kbd {
     border: 2px solid transparent;
     border-radius: 6px;
     overflow: hidden;
-    background: #0b0f18;
+    background: var(--stage);
     opacity: 0.65;
 }
 
@@ -1321,8 +1410,8 @@ kbd {
         font-size: 18px;
     }
 
-    .flat__countries-list {
-        display: none;
+    .flat__continents {
+        gap: 6px 12px;
     }
 
     .flat__zoom {

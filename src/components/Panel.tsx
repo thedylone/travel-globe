@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { formatDateRange, yearOf } from "../lib/dates";
 import type { TravelStats } from "../lib/stats";
+import type { ThemePref } from "../lib/theme";
 import type { Trip } from "../types";
 import type { GlobeSettings } from "./GlobeView";
 
@@ -16,7 +17,15 @@ interface Props {
     stats: TravelStats;
     settings: GlobeSettings;
     setSettings: (next: GlobeSettings) => void;
+    themePref: ThemePref;
+    setThemePref: (next: ThemePref) => void;
 }
+
+const THEMES: { value: ThemePref; label: string }[] = [
+    { value: "auto", label: "Auto" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+];
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -41,7 +50,7 @@ const TOGGLES: { key: Toggle; label: string; shortcut: string; satelliteOnly?: b
 ];
 
 export const Panel = (props: Props) => {
-    const { open, onToggle, trips, hidden, setHidden, focus, onFocus, colors, stats, settings, setSettings } = props;
+    const { open, onToggle, trips, hidden, setHidden, focus, onFocus, colors, stats, settings, setSettings, themePref, setThemePref } = props;
 
     const years = new Map<number, Trip[]>();
     for (const t of [...trips].reverse()) {
@@ -126,6 +135,23 @@ export const Panel = (props: Props) => {
                             </div>
                         );
                     })}
+                </section>
+
+                <section className="panel__section">
+                    <h2>Theme</h2>
+                    <div className="segmented" role="radiogroup" aria-label="Theme">
+                        {THEMES.map(({ value, label }) => (
+                            <label key={value} title={value === "auto" ? "Follow your device" : undefined}>
+                                <input
+                                    type="radio"
+                                    name="theme"
+                                    checked={themePref === value}
+                                    onChange={() => setThemePref(value)}
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
                 </section>
 
                 <section className="panel__section">

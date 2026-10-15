@@ -54,9 +54,11 @@ const IMAGERY = {
     },
 };
 
-const MAP_OCEAN = new MeshPhongMaterial({ color: "#0b1a33", shininess: 4 });
-const MAP_LAND = "#253149";
-const MAP_VISITED = "#4c7aad"; // opaque: transparent fills cost a lot more to draw
+/** Map style colours per theme. Fills are opaque: transparent ones cost a lot more to draw. */
+const MAP_STYLE = {
+    dark: { ocean: new MeshPhongMaterial({ color: "#0b1a33", shininess: 4 }), land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
+    light: { ocean: new MeshPhongMaterial({ color: "#c4d3e6", shininess: 4 }), land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
+};
 
 /** Seconds of no interaction before auto-rotate resumes. */
 const RESUME_ROTATE_MS = 8000;
@@ -88,6 +90,7 @@ interface Props {
     inset: { left: number; bottom: number };
     /** False while the 2D map is showing: hide the globe and stop rendering it. */
     active: boolean;
+    theme: "light" | "dark";
     onOpen: (visits: Visit[], initial: Visit) => void;
 }
 
@@ -104,7 +107,8 @@ const useWindowSize = () => {
 const latest = (visits: Visit[]) => visits[visits.length - 1];
 
 export const GlobeView = (props: Props) => {
-    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, inset, active, onOpen } = props;
+    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, inset, active, theme, onOpen } = props;
+    const mapStyle = MAP_STYLE[theme];
     const globe = useRef<GlobeMethods | undefined>(undefined);
     const win = useWindowSize();
     const width = Math.max(1, win.width - inset.left);
@@ -243,7 +247,10 @@ export const GlobeView = (props: Props) => {
         () => (satellite || !countries.length ? [] : shadeCountries(countries, trips.flatMap((t) => t.stops))),
         [satellite, countries, trips]
     );
-    const capColor = useCallback((d: object) => ((d as ShadedCountry).properties.visited ? MAP_VISITED : MAP_LAND), []);
+    const capColor = useCallback(
+        (d: object) => ((d as ShadedCountry).properties.visited ? mapStyle.visited : mapStyle.land),
+        [mapStyle]
+    );
 
     useEffect(() => {
         if (active) globe.current?.resumeAnimation();
@@ -268,14 +275,14 @@ export const GlobeView = (props: Props) => {
                 height={height}
                 globeImageUrl={null}
                 globeTileEngineUrl={satellite ? imagery.url : null}
-                globeMaterial={MAP_OCEAN}
+                globeMaterial={mapStyle.ocean}
                 backgroundImageUrl={STARS}
                 onZoom={onZoom}
                 polygonsData={shaded}
                 polygonCapColor={capColor}
                 // No side walls: a falsy colour skips building them.
                 polygonSideColor={() => ""}
-                polygonStrokeColor={() => "rgba(160, 180, 215, 0.6)"}
+                polygonStrokeColor={() => mapStyle.border}
                 polygonAltitude={0.002}
                 polygonLabel={(d: object) => (d as CountryFeature).properties.name}
                 polygonsTransitionDuration={0}
