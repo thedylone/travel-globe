@@ -1,7 +1,7 @@
 import { type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
 import { MeshPhongMaterial, type Object3D } from "three";
-import { borderLines, type CountryFeature, loadCountries } from "../lib/borders";
+import { borderLines, type CountryFeature, loadCountries, shadeCountries, type ShadedCountry } from "../lib/borders";
 import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
 import { withAlpha } from "../lib/colors";
 import type { LatLng } from "../lib/geo";
@@ -84,8 +84,6 @@ interface Props {
     /** Stop auto-rotating (e.g. while a dialog is open). */
     paused: boolean;
     highlight?: LatLng;
-    /** Country names to shade (as in Natural Earth). */
-    visitedCountries: ReadonlySet<string>;
     /** Space taken by the panel and timeline, so the globe centres in what's left. */
     inset: { left: number; bottom: number };
     /** False while the 2D map is showing: hide the globe and stop rendering it. */
@@ -106,7 +104,7 @@ const useWindowSize = () => {
 const latest = (visits: Visit[]) => visits[visits.length - 1];
 
 export const GlobeView = (props: Props) => {
-    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, visitedCountries, inset, active, onOpen } = props;
+    const { ref, trips, places, bases, colors, settings, initialView, paused, highlight, inset, active, onOpen } = props;
     const globe = useRef<GlobeMethods | undefined>(undefined);
     const win = useWindowSize();
     const width = Math.max(1, win.width - inset.left);
@@ -240,10 +238,12 @@ export const GlobeView = (props: Props) => {
         if (showCountries) loadCountries().then(setCountries, () => setCountries([]));
     }, [showCountries]);
     const lines = useMemo(() => (satellite && settings.borders ? borderLines(countries) : []), [satellite, settings.borders, countries]);
-    const capColor = useCallback(
-        (d: object) => (visitedCountries.has((d as CountryFeature).properties.name) ? MAP_VISITED : MAP_LAND),
-        [visitedCountries]
+    // Shade the land masses near your stops (not every overseas territory of a visited country).
+    const shaded = useMemo(
+        () => (satellite || !countries.length ? [] : shadeCountries(countries, trips.flatMap((t) => t.stops))),
+        [satellite, countries, trips]
     );
+    const capColor = useCallback((d: object) => ((d as ShadedCountry).properties.visited ? MAP_VISITED : MAP_LAND), []);
 
     useEffect(() => {
         if (active) globe.current?.resumeAnimation();
@@ -271,7 +271,7 @@ export const GlobeView = (props: Props) => {
                 globeMaterial={MAP_OCEAN}
                 backgroundImageUrl={STARS}
                 onZoom={onZoom}
-                polygonsData={satellite ? [] : countries}
+                polygonsData={shaded}
                 polygonCapColor={capColor}
                 // No side walls: a falsy colour skips building them.
                 polygonSideColor={() => ""}

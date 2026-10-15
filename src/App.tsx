@@ -148,10 +148,6 @@ export const App = () => {
         [focusTrip, hidden]
     );
     const places = useMemo(() => filterPlaces(allPlaces, new Set(visibleTrips.map((t) => t.id))), [visibleTrips]);
-    const visitedCountries = useMemo(
-        () => new Set(visibleTrips.flatMap((t) => t.stops.flatMap((s) => (s.country ? [s.country] : [])))),
-        [visibleTrips]
-    );
     const stats = useMemo(() => computeStats(visibleTrips), [visibleTrips]);
     const visibleStops = useMemo(() => visibleTrips.flatMap((t) => t.stops), [visibleTrips]);
 
@@ -261,7 +257,6 @@ export const App = () => {
                 initialView={startView}
                 paused={!!openVisit || !!focusTrip}
                 highlight={openVisit?.stop}
-                visitedCountries={visitedCountries}
                 inset={inset}
                 active={view === "globe"}
                 onOpen={onOpen}
