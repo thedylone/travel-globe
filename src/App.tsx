@@ -314,7 +314,14 @@ export const App = () => {
                         </label>
                     ))}
                 </div>
-                <LayersMenu settings={settings} setSettings={setSettings} themePref={themePref} setThemePref={setThemePref} />
+                <LayersMenu
+                    settings={settings}
+                    setSettings={setSettings}
+                    themePref={themePref}
+                    setThemePref={setThemePref}
+                    theme={theme}
+                    stops={visibleStops}
+                />
             </div>
             <Timeline
                 ref={setTimelineEl}

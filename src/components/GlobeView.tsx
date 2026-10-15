@@ -32,7 +32,7 @@ export interface GlobeSettings {
 const tex = (name: string) => `${import.meta.env.BASE_URL}textures/${name}`;
 const STARS = tex("stars.jpg");
 /** Small whole-Earth images shown under the tiles, so the globe isn't black while they load. */
-const FALLBACK = { day: tex("earth-day-low.jpg"), night: tex("earth-night-low.jpg") };
+export const FALLBACK = { day: tex("earth-day-low.jpg"), night: tex("earth-night-low.jpg") };
 /**
  * A tile pixel may cover up to this many screen pixels before the next level loads.
  * Above 1 is slightly soft but needs far fewer tiles (each level is 4x as many).
@@ -64,7 +64,7 @@ const IMAGERY = {
 };
 
 /** Map style colours per theme, painted into the globe's texture. */
-const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
+export const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
     dark: { ocean: "#0b1a33", land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
     light: { ocean: "#c4d3e6", land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
 };
