@@ -344,7 +344,15 @@ export const App = () => {
                     <button type="button" onClick={() => userFocus(undefined)}>All trips</button>
                 </div>
             )}
-            {shareOpen && <ShareDialog stats={stats} stops={visibleStops} theme={theme} onClose={() => setShareOpen(false)} />}
+            {shareOpen && (
+                <ShareDialog
+                    stats={stats}
+                    stops={visibleStops}
+                    theme={theme}
+                    filtered={visibleTrips.length < trips.length}
+                    onClose={() => setShareOpen(false)}
+                />
+            )}
             {openVisit && (
                 <PlaceDialog
                     visits={dialogList}
