@@ -1,9 +1,7 @@
 import { useEffect, useRef } from "react";
 import { formatDateRange, yearOf } from "../lib/dates";
 import type { TravelStats } from "../lib/stats";
-import type { ThemePref } from "../lib/theme";
 import type { Trip } from "../types";
-import type { GlobeSettings } from "./GlobeView";
 
 interface Props {
     open: boolean;
@@ -15,17 +13,7 @@ interface Props {
     onFocus: (tripId: string) => void;
     colors: Map<string, string>;
     stats: TravelStats;
-    settings: GlobeSettings;
-    setSettings: (next: GlobeSettings) => void;
-    themePref: ThemePref;
-    setThemePref: (next: ThemePref) => void;
 }
-
-const THEMES: { value: ThemePref; label: string }[] = [
-    { value: "auto", label: "Auto" },
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
-];
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -42,15 +30,8 @@ const Checkbox = ({ checked, indeterminate, onChange, label }: {
     return <input ref={ref} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} aria-label={label} />;
 };
 
-type Toggle = "rotate" | "night" | "borders";
-const TOGGLES: { key: Toggle; label: string; shortcut: string; satelliteOnly?: boolean }[] = [
-    { key: "rotate", label: "Rotate", shortcut: "R" },
-    { key: "night", label: "Night", shortcut: "D", satelliteOnly: true },
-    { key: "borders", label: "Country borders", shortcut: "B", satelliteOnly: true },
-];
-
 export const Panel = (props: Props) => {
-    const { open, onToggle, trips, hidden, setHidden, focus, onFocus, colors, stats, settings, setSettings, themePref, setThemePref } = props;
+    const { open, onToggle, trips, hidden, setHidden, focus, onFocus, colors, stats } = props;
 
     const years = new Map<number, Trip[]>();
     for (const t of [...trips].reverse()) {
@@ -133,56 +114,6 @@ export const Panel = (props: Props) => {
                                     ))}
                                 </ul>
                             </div>
-                        );
-                    })}
-                </section>
-
-                <section className="panel__section">
-                    <h2>Theme</h2>
-                    <div className="segmented" role="radiogroup" aria-label="Theme">
-                        {THEMES.map(({ value, label }) => (
-                            <label key={value} title={value === "auto" ? "Follow your device" : undefined}>
-                                <input
-                                    type="radio"
-                                    name="theme"
-                                    checked={themePref === value}
-                                    onChange={() => setThemePref(value)}
-                                />
-                                {label}
-                            </label>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="panel__section">
-                    <h2>Globe</h2>
-                    <div className="segmented" role="radiogroup" aria-label="Globe style">
-                        {(["satellite", "map"] as const).map((style) => (
-                            <label key={style}>
-                                <input
-                                    type="radio"
-                                    name="globe-style"
-                                    checked={settings.style === style}
-                                    onChange={() => setSettings({ ...settings, style })}
-                                />
-                                {style === "satellite" ? "Satellite" : "Map"}
-                            </label>
-                        ))}
-                        <kbd>M</kbd>
-                    </div>
-                    {TOGGLES.map(({ key, label, shortcut, satelliteOnly }) => {
-                        const disabled = satelliteOnly && settings.style !== "satellite";
-                        return (
-                            <label className="setting" key={key} data-disabled={disabled}>
-                                <input
-                                    type="checkbox"
-                                    checked={settings[key]}
-                                    disabled={disabled}
-                                    onChange={(e) => setSettings({ ...settings, [key]: e.target.checked })}
-                                />
-                                {label}
-                                <kbd>{shortcut}</kbd>
-                            </label>
                         );
                     })}
                 </section>

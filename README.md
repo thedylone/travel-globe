@@ -14,7 +14,8 @@ Trips and places I've visited, on an interactive 3D globe:
 - **2D** view: a flat world map with visited countries shaded, your places, the headline numbers, the share
   of the world's countries you've been to, and how many of each continent's.
   **Share image** turns it into a PNG sized for an Instagram post, a story or a link preview, in dark or light.
-- **Theme**: Dark (the default), Light, or Auto to follow your device, in the panel. The globe itself stays in
+- **Layers** (top right): map type, borders, night, rotation, and the theme: Dark (the default), Light, or
+  Auto to follow your device. The globe itself stays in
   space either way. The default is `DEFAULT_THEME` in `src/lib/theme.ts`.
 - Keys: **R** rotate, **D** day/night, **M** satellite/map, **B** borders, **V** 3D/2D, **T** timeline,
   **P** play, **Esc** back to all trips, **← →** photos.
