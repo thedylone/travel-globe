@@ -1,4 +1,4 @@
-import type { Trip } from "../types";
+import { type Continent, CONTINENTS, type Trip, type WorldInfo } from "../types";
 import { yearOf } from "./dates";
 import { distanceKm, type LatLng } from "./geo";
 import { buildPlaces } from "./places";
@@ -15,6 +15,10 @@ export interface TravelStats {
     km: number;
     firstYear?: number;
     lastYear?: number;
+    /** Share of the world's countries (see WorldInfo.total) you've been to, 0–1. */
+    worldShare: number;
+    /** Every continent, in a fixed order: countries visited out of its total. */
+    continents: { name: Continent; visited: number; total: number }[];
 }
 
 export const tripKm = (trip: Trip) => {
@@ -23,10 +27,18 @@ export const tripKm = (trip: Trip) => {
 };
 
 /** The headline numbers for a set of trips (sorted by date). Shared by the panel, the 2D map and the share image. */
-export const computeStats = (trips: Trip[]): TravelStats => {
+export const computeStats = (trips: Trip[], world: WorldInfo): TravelStats => {
     const countries: string[] = [];
     for (const t of trips) for (const s of t.stops) if (s.country && !countries.includes(s.country)) countries.push(s.country);
+    // Only countries that are among the world's 195 count towards the percentages.
+    const counted = countries.map((c) => world.countries[c]).filter((c) => c?.counted);
     return {
+        worldShare: world.total ? counted.length / world.total : 0,
+        continents: CONTINENTS.map((name) => ({
+            name,
+            visited: counted.filter((c) => c.continent === name).length,
+            total: world.continents[name] ?? 0,
+        })),
         trips: trips.length,
         countries,
         places: buildPlaces(trips).length,
@@ -64,5 +76,11 @@ const SHORT_NAMES: Record<string, string> = {
 
 /** Natural Earth abbreviates some names for maps; spell them out for text. */
 export const countryLabel = (name: string) => SHORT_NAMES[name] ?? name;
+
+/** "9%", or "0.5%" below 1% so a first trip doesn't read as 0%. */
+export const percent = (share: number) => {
+    const p = share * 100;
+    return `${p > 0 && p < 1 ? p.toFixed(1) : Math.round(p)}%`;
+};
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-GB")} ${n === 1 ? one : many}`;

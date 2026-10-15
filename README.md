@@ -11,8 +11,11 @@ Trips and places I've visited, on an interactive 3D globe:
 - **Satellite** imagery loads as map tiles, so it gets sharper as you zoom in (down to ~10 m per pixel).
   **Map** style draws country borders as vectors (crisp at any zoom) and shades the countries you've been to;
   **Borders** overlays them on the satellite view.
-- **2D** view: a flat world map with visited countries shaded, your places, and the headline numbers.
-  **Share image** turns it into a PNG sized for an Instagram post, a story or a link preview.
+- **2D** view: a flat world map with visited countries shaded, your places, the headline numbers, the share
+  of the world's countries you've been to, and how many of each continent's.
+  **Share image** turns it into a PNG sized for an Instagram post, a story or a link preview, in dark or light.
+- **Theme**: Dark (the default), Light, or Auto to follow your device, in the panel. The globe itself stays in
+  space either way. The default is `DEFAULT_THEME` in `src/lib/theme.ts`.
 - Keys: **R** rotate, **D** day/night, **M** satellite/map, **B** borders, **V** 3D/2D, **T** timeline,
   **P** play, **Esc** back to all trips, **← →** photos.
 
@@ -125,6 +128,8 @@ Every build renders the stats card into the site, so these always show the lates
 | https://thedylone.github.io/travel-history/stats-story.png | 1080×1920, stories |
 | https://thedylone.github.io/travel-history/stats-wide.png | 1200×630, also the site's link preview |
 
+Each also comes in light: `stats-light.png`, `stats-story-light.png`, `stats-wide-light.png`.
+
 Embed one anywhere that takes an image URL, e.g. in a GitHub profile README:
 
 ```md
@@ -135,6 +140,11 @@ Embed one anywhere that takes an image URL, e.g. in a GitHub profile README:
 in-app **Share image** button, in the bundled [Bricolage Grotesque](https://github.com/ateliertriay/bricolage)
 font (`public/fonts`, SIL Open Font License). A country is shaded where you have a stop on or within ~1,200 km of
 that land mass, so a trip to Paris doesn't colour in French Guiana.
+
+Percentages count the world as 195 countries (the 193 UN members plus Vatican City and Palestine), using the
+[world-countries](https://github.com/mledoze/countries) dataset (ODbL) for each country's continent. Central America
+and the Caribbean count as North America. Places that aren't among the 195 (Greenland, Hong Kong) still show on the
+map and in the country count, but not in the percentages.
 
 ## Imagery and borders
 

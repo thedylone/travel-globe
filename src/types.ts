@@ -50,7 +50,21 @@ export interface Trip {
     stops: Stop[];
 }
 
+export const CONTINENTS = ["Europe", "Asia", "Africa", "North America", "South America", "Oceania"] as const;
+export type Continent = (typeof CONTINENTS)[number];
+
+/** How your countries fit into the world, worked out at build time from the world-countries dataset. */
+export interface WorldInfo {
+    /** Countries in the world: the 193 UN members plus the two observer states. */
+    total: number;
+    /** Of those, how many are on each continent. */
+    continents: Record<Continent, number>;
+    /** Each country you've been to (by Natural Earth name): its continent, and whether it's one of `total`. */
+    countries: Record<string, { continent?: Continent; counted: boolean }>;
+}
+
 export interface TravelData {
     trips: Trip[];
     bases: Base[];
+    world: WorldInfo;
 }

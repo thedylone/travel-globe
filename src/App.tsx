@@ -13,9 +13,10 @@ import type { LatLng } from "./lib/geo";
 import { buildPlaces, filterPlaces, findPlace, type Visit } from "./lib/places";
 import { parseHash, type Route, toHash } from "./lib/route";
 import { computeStats } from "./lib/stats";
+import { loadThemePref, useTheme } from "./lib/theme";
 import type { Trip } from "./types";
 
-const { trips, bases } = data;
+const { trips, bases, world } = data;
 const tripsById = new Map(trips.map((t) => [t.id, t]));
 const colors = tripColors(trips);
 const allPlaces = buildPlaces(trips);
@@ -103,6 +104,8 @@ export const App = () => {
     const [playing, setPlaying] = useState(false);
     const [view, setView] = useState(loadView);
     const [shareOpen, setShareOpen] = useState(false);
+    const [themePref, setThemePref] = useState(loadThemePref);
+    const theme = useTheme(themePref);
     useEffect(() => {
         try {
             localStorage.setItem(VIEW_KEY, view);
@@ -148,7 +151,7 @@ export const App = () => {
         [focusTrip, hidden]
     );
     const places = useMemo(() => filterPlaces(allPlaces, new Set(visibleTrips.map((t) => t.id))), [visibleTrips]);
-    const stats = useMemo(() => computeStats(visibleTrips), [visibleTrips]);
+    const stats = useMemo(() => computeStats(visibleTrips, world), [visibleTrips]);
     const visibleStops = useMemo(() => visibleTrips.flatMap((t) => t.stops), [visibleTrips]);
 
     const setFocus = useCallback((tripId: string | undefined) => {
@@ -258,6 +261,7 @@ export const App = () => {
                 paused={!!openVisit || !!focusTrip}
                 highlight={openVisit?.stop}
                 inset={inset}
+                theme={theme}
                 active={view === "globe"}
                 onOpen={onOpen}
             />
@@ -293,6 +297,8 @@ export const App = () => {
                 stats={stats}
                 settings={settings}
                 setSettings={setSettings}
+                themePref={themePref}
+                setThemePref={setThemePref}
             />
             <button
                 type="button"
@@ -327,7 +333,7 @@ export const App = () => {
                     <button type="button" onClick={() => userFocus(undefined)}>All trips</button>
                 </div>
             )}
-            {shareOpen && <ShareDialog stats={stats} stops={visibleStops} onClose={() => setShareOpen(false)} />}
+            {shareOpen && <ShareDialog stats={stats} stops={visibleStops} theme={theme} onClose={() => setShareOpen(false)} />}
             {openVisit && (
                 <PlaceDialog
                     visits={dialogList}

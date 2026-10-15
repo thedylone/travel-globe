@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { loadCountries } from "../lib/borders";
 import { shareFontDataUrl, svgToPng } from "../lib/rasterize";
-import { renderShareSvg, SHARE_SIZES, type ShareSize } from "../lib/share";
+import { renderShareSvg, SHARE_SIZES, type ShareSize, type ShareTheme } from "../lib/share";
 import type { TravelStats } from "../lib/stats";
 
 interface Props {
     stats: TravelStats;
     stops: { lat: number; lng: number; country?: string }[];
+    /** The page's theme: the image starts in the same one. */
+    theme: ShareTheme;
     onClose: () => void;
 }
 
 /** Published by the deploy (scripts/stats-image.ts); always shows every trip. */
-const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats.png", story: "stats-story.png", wide: "stats-wide.png" };
-const siteImage = (size: ShareSize) => `https://${__SITE_URL__}/${STATIC_IMAGES[size]}`;
+const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats", story: "stats-story", wide: "stats-wide" };
+const siteImage = (size: ShareSize, theme: ShareTheme) =>
+    `https://${__SITE_URL__}/${STATIC_IMAGES[size]}${theme === "light" ? "-light" : ""}.png`;
 
-export const ShareDialog = ({ stats, stops, onClose }: Props) => {
+export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) => {
     const dialog = useRef<HTMLDialogElement>(null);
     const [size, setSize] = useState<ShareSize>("post");
+    const [theme, setTheme] = useState<ShareTheme>(pageTheme);
     const [png, setPng] = useState<{ blob: Blob; url: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -33,7 +37,7 @@ export const ShareDialog = ({ stats, stops, onClose }: Props) => {
         setError(null);
         (async () => {
             const [countries, fontDataUrl] = await Promise.all([loadCountries(), shareFontDataUrl().catch(() => undefined)]);
-            const svg = renderShareSvg({ countries, stops, stats, size, url: __SITE_URL__, fontDataUrl });
+            const svg = renderShareSvg({ countries, stops, stats, size, theme, url: __SITE_URL__, fontDataUrl });
             const { width, height } = SHARE_SIZES[size];
             const blob = await svgToPng(svg, width, height);
             if (cancelled) return;
@@ -44,15 +48,15 @@ export const ShareDialog = ({ stats, stops, onClose }: Props) => {
             cancelled = true;
             if (made) URL.revokeObjectURL(made);
         };
-    }, [size, stats, stops]);
+    }, [size, theme, stats, stops]);
 
-    const fileName = `travel-history-${size}.png`;
+    const fileName = `travel-history-${size}${theme === "light" ? "-light" : ""}.png`;
     const file = png ? new File([png.blob], fileName, { type: "image/png" }) : null;
     const canShare = !!file && typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
 
     const copy = async () => {
         try {
-            await navigator.clipboard.writeText(siteImage(size));
+            await navigator.clipboard.writeText(siteImage(size, theme));
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
         } catch {
@@ -84,6 +88,15 @@ export const ShareDialog = ({ stats, stops, onClose }: Props) => {
                     ))}
                 </div>
 
+                <div className="segmented share__themes" role="radiogroup" aria-label="Image colours">
+                    {(["dark", "light"] as const).map((t) => (
+                        <label key={t}>
+                            <input type="radio" name="share-theme" checked={theme === t} onChange={() => setTheme(t)} />
+                            {t === "dark" ? "Dark" : "Light"}
+                        </label>
+                    ))}
+                </div>
+
                 <div className="share__preview" style={{ aspectRatio: `${SHARE_SIZES[size].width} / ${SHARE_SIZES[size].height}` }}>
                     {png ? <img src={png.url} alt="Preview of the share image" /> : <p>{error ? `Couldn't make the image: ${error}` : "Drawing…"}</p>}
                 </div>
@@ -111,7 +124,7 @@ export const ShareDialog = ({ stats, stops, onClose }: Props) => {
                 <div className="share__link">
                     <label htmlFor="share-link">Link that always shows the latest image (all trips; updated whenever the site deploys)</label>
                     <div>
-                        <input id="share-link" readOnly value={siteImage(size)} onFocus={(e) => e.target.select()} />
+                        <input id="share-link" readOnly value={siteImage(size, theme)} onFocus={(e) => e.target.select()} />
                         <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
                     </div>
                 </div>

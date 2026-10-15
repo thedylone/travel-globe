@@ -7,6 +7,7 @@ import type { LatLng } from "../../src/lib/geo.ts";
 import type { Base, Endpoint, Media, Stop, TravelData, Trip } from "../../src/types.ts";
 import { countryAt } from "./countries.ts";
 import { type Geocoder, PlaceCache } from "./geocode.ts";
+import { worldInfo } from "./world.ts";
 import {
     BasesSchema,
     formatIssues,
@@ -208,5 +209,6 @@ export const loadTravelData = async ({ root, geocoder }: LoadOptions): Promise<L
     trips.sort((a, b) => a.start.localeCompare(b.start) || a.id.localeCompare(b.id));
     cache.save();
 
-    return { data: { trips, bases }, errors, warnings, files };
+    const world = worldInfo(new Set(trips.flatMap((t) => t.stops.flatMap((s) => (s.country ? [s.country] : [])))));
+    return { data: { trips, bases, world }, errors, warnings, files };
 };
