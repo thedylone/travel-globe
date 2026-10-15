@@ -111,7 +111,26 @@ git ls-tree -d -z --name-only fb00002 public/images/ | xargs -0 git archive fb00
 | `npm run check` | validate `data/`, look up new places |
 | `npm test` | unit tests |
 | `npm run build` | production build into `dist/`, including the stats images |
+| `npm run perf` | performance check of the build (below) |
 | `npm run stats-image -- <folder>` | render just the stats images |
+
+## Performance check
+
+`npm run perf` opens the build in headless Chromium and, for each map style, counts the WebGL draw calls per
+frame and times a scripted drag and zoom, plus the switch from satellite to map:
+
+```
+                      draw calls/frame   long tasks (drag + zoom)   longest
+satellite                           99                    0, 0 ms      0 ms
+satellite + borders                100                    0, 0 ms      0 ms
+map                                 83                    0, 0 ms      0 ms
+switch to map                                           2, 816 ms    750 ms
+```
+
+It fails if a style goes over 400 draw calls a frame or the page throws; CI runs it on every push and pull
+request. Draw calls are the dependable number (drawing each border as its own object once took ~1,700 a frame and
+made the globe sluggish). The timings depend on the machine and only print a warning: headless Chromium renders
+on the CPU, so it's far slower than a real GPU. The first run needs a browser: `npx playwright install chromium`.
 
 ## Deploying
 
