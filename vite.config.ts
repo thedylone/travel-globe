@@ -5,7 +5,7 @@ import { defineConfig } from "vite";
 import { ENGINE_ROOT, loadSite, resolveDataDir } from "./scripts/lib/site.ts";
 import { travelData } from "./scripts/vite-plugin-travel-data.ts";
 
-// The data folder to show (see README, "Data folder"); the travel-history command sets it.
+// The data folder to show (see README, "Data folder"); the travel-globe command sets it.
 const dataDir = resolveDataDir();
 const site = loadSite(dataDir);
 

@@ -160,8 +160,8 @@ describe("site", () => {
 
     it("uses the data folder given, else the current folder with a site.yaml, else the example", () => {
         const cwd = process.cwd();
-        const env = process.env.TRAVEL_HISTORY_DATA;
-        delete process.env.TRAVEL_HISTORY_DATA;
+        const env = process.env.TRAVEL_GLOBE_DATA;
+        delete process.env.TRAVEL_GLOBE_DATA;
         try {
             process.chdir(dir);
             expect(resolveDataDir("x")).toBe(path.join(fs.realpathSync(dir), "x"));
@@ -170,7 +170,7 @@ describe("site", () => {
             expect(fs.realpathSync(resolveDataDir())).toBe(fs.realpathSync(dir));
         } finally {
             process.chdir(cwd);
-            if (env !== undefined) process.env.TRAVEL_HISTORY_DATA = env;
+            if (env !== undefined) process.env.TRAVEL_GLOBE_DATA = env;
         }
     });
 

@@ -1,8 +1,8 @@
 /**
- * travel-history <command> [--data <folder>] [options]
+ * travel-globe <command> [--data <folder>] [options]
  *
  * The command a data repo's npm scripts call. Every command works on one data folder:
- * --data, else $TRAVEL_HISTORY_DATA, else the current folder if it has a site.yaml,
+ * --data, else $TRAVEL_GLOBE_DATA, else the current folder if it has a site.yaml,
  * else the bundled example/ (see README, "Data folder").
  */
 import path from "node:path";
@@ -10,7 +10,7 @@ import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { build, createServer, preview } from "vite";
 import { DATA_ENV, ENGINE_ROOT, resolveDataDir } from "./lib/site.ts";
 
-const USAGE = `Usage: travel-history <command> [--data <folder>]
+const USAGE = `Usage: travel-globe <command> [--data <folder>]
 
   dev [--host] [--port <n>]   dev server; reloads when the data changes
   build [--out <folder>]      production build (default: dist/), including the stats images

@@ -4,7 +4,7 @@ import type { LatLng } from "../../src/lib/geo.ts";
 // OpenStreetMap Nominatim: free, no key, max 1 request/second.
 // https://operations.osmfoundation.org/policies/nominatim/
 const NOMINATIM = "https://nominatim.openstreetmap.org";
-const USER_AGENT = "travel-history (https://github.com/thedylone/travel-history)";
+const USER_AGENT = "travel-globe (https://github.com/thedylone/travel-globe)";
 
 let lastRequest = 0;
 const throttle = async () => {

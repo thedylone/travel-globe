@@ -5,16 +5,16 @@ import YAML from "yaml";
 import { z } from "zod";
 import { formatIssues } from "./schema.ts";
 
-/** Where the engine is installed: this repo, or node_modules/travel-history in a data repo. */
+/** Where the engine is installed: this repo, or node_modules/travel-globe in a data repo. */
 export const ENGINE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 /** Sample trips, used when there's no data folder to show. */
 export const EXAMPLE_DIR = path.join(ENGINE_ROOT, "example");
-/** Set by the travel-history command so Vite and every script read the same data folder. */
-export const DATA_ENV = "TRAVEL_HISTORY_DATA";
+/** Set by the travel-globe command so Vite and every script read the same data folder. */
+export const DATA_ENV = "TRAVEL_GLOBE_DATA";
 export const SITE_FILE = "site.yaml";
 
 /**
- * The data folder to use: the one given, else $TRAVEL_HISTORY_DATA, else the current
+ * The data folder to use: the one given, else $TRAVEL_GLOBE_DATA, else the current
  * folder if it has a site.yaml, else the bundled example.
  */
 export const resolveDataDir = (given?: string) => {
