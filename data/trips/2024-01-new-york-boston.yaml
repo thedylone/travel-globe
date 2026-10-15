@@ -1,0 +1,10 @@
+title: new york + boston
+from: school
+stops:
+  - place: new york
+    date: 2024-01-03..2024-01-07
+    photos: new york
+
+  - place: boston
+    date: 2024-01-07..2024-01-09
+    photos: [boston/1, boston/2, boston/3, boston/4, boston/5]

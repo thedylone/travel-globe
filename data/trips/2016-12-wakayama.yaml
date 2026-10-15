@@ -1,0 +1,30 @@
+title: wakayama
+from: home
+stops:
+  - place: wakayama
+    date: 2016-12-05..2016-12-06
+    photos: [wakayama/1, wakayama/2, wakayama/3, wakayama/4]
+
+  - place: shirahama
+    date: 2016-12-06
+    photos: [wakayama/5, wakayama/6, wakayama/7]
+
+  - place: nachisan
+    date: 2016-12-07
+    photos: [wakayama/8, wakayama/9]
+
+  - place: mie
+    date: 2016-12-07
+    photos: [wakayama/10, wakayama/11, wakayama/12]
+
+  - place: takayama/gifu?
+    date: 2016-12-08..2016-12-09
+    photos: [wakayama/13, wakayama/14, wakayama/15]
+
+  - place: kyoto
+    date: 2016-12-10
+    photos: [wakayama/16, wakayama/17, wakayama/18]
+
+  - place: osaka
+    date: 2016-12-10
+    photos: [wakayama/19]

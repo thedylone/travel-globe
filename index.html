@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#040e20" />
+    <meta name="description" content="thedylone's travels on an interactive globe" />
+    <link rel="icon" href="%BASE_URL%favicon/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon/favicon-32x32.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%favicon/apple-touch-icon.png" />
+    <link rel="manifest" href="%BASE_URL%manifest.json" />
+    <title>Travel History</title>
+    <script>
+      // Apply the saved theme before first paint (see src/lib/theme.ts), so pages don't flash.
+      try {
+        var t = localStorage.getItem("travel-history:theme") || "dark";
+        var dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      } catch (e) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
+    <meta property="og:title" content="thedylone's travel history" />
+    <meta property="og:description" content="thedylone's travels on an interactive globe" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://thedylone.github.io/travel-history/" />
+    <!-- Made by scripts/stats-image.ts on every build, so link previews show the current stats. -->
+    <meta property="og:image" content="https://thedylone.github.io/travel-history/stats-wide.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="@thedylone" />
+    <meta name="twitter:image" content="https://thedylone.github.io/travel-history/stats-wide.png" />
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+title: poland
+from: school
+stops:
+  - place: kraków
+    date: 2024-03-07..2024-03-09
+    photos: krakow
+
+  - place: auschwitz
+    date: 2024-03-08
+    photos: auschwitz
+
+  - place: warsaw
+    date: 2024-03-09..2024-03-10
+    photos: warsaw/2024
