@@ -6,7 +6,13 @@ Trips and places I've visited, on an interactive 3D globe:
 - Nearby places merge into numbered clusters; zoom in (or click one) and they split apart.
 - A place visited on several trips gets one pin with a multi-coloured ring, and its dialog has a tab per visit.
 - Click a trip in the list to fly to it; links like `#trip=2024-02-iceland` or `#stop=2024-03-poland:2` open a view directly.
-- Keys: **R** rotate, **D** day/night, **H** high-resolution textures, **Esc** back to all trips, **← →** photos.
+- **Timeline**: a calendar with a row per year and a bar per trip. Click a bar to fly there, or **Play** to fly
+  through every trip in order.
+- **Satellite** imagery loads as map tiles, so it gets sharper as you zoom in (down to ~10 m per pixel).
+  **Map** style draws country borders as vectors (crisp at any zoom) and shades the countries you've been to;
+  **Borders** overlays them on the satellite view.
+- Keys: **R** rotate, **D** day/night, **M** satellite/map, **B** borders, **T** timeline, **P** play,
+  **Esc** back to all trips, **← →** photos.
 
 ```sh
 npm install
@@ -106,6 +112,17 @@ Pushing to `main` builds and deploys with GitHub Actions (`.github/workflows/dep
 built and tested but not deployed. One-time setup: repo *Settings › Pages › Build and deployment › Source:
 GitHub Actions*. `npm run deploy` still publishes `dist/` to the `gh-pages` branch by hand if needed.
 
+## Imagery and borders
+
+| | Source | Licence |
+| --- | --- | --- |
+| Day | [Sentinel-2 cloudless 2024](https://s2maps.eu) by EOX, ~10 m/pixel | CC BY-NC-SA 4.0: free for non-commercial use, with the credit shown on the globe |
+| Night | [NASA City Lights 2012](https://earthdata.nasa.gov/gibs) via GIBS, ~600 m/pixel | Public domain |
+| Borders | [Natural Earth](https://www.naturalearthdata.com) 1:50m via `world-atlas` | Public domain |
+
+Tiles are loaded straight from those servers (no API keys). Stops are matched to countries at build time
+(`scripts/lib/countries.ts`) for the country count and the shading in map style.
+
 ## Layout
 
 ```
@@ -116,6 +133,6 @@ data/photos.json      processed photos (written by `npm run photos`)
 photos/               original photos (not committed)
 public/photos/        web versions (committed)
 scripts/              import, photo processing, data loading and validation
-src/lib/              places, clustering, dates, geo maths (unit tested)
-src/components/       globe, trip panel, photo dialog
+src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
+src/components/       globe, trip panel, timeline, photo dialog
 ```

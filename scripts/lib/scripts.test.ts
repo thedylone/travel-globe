@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import YAML from "yaml";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { countryAt } from "./countries.ts";
 import { loadTravelData } from "./load.ts";
 import { groupIntoStops } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
@@ -122,5 +123,16 @@ describe("loadTravelData", () => {
         write("data/trips/t.yaml", "title: t\nstops:\n  - place: x\n    lat: 1\n    lng: 2\n    date: 2024-01-01\n    photos: [krakow/99]\n");
         const { errors } = await loadTravelData({ root, geocoder: false });
         expect(errors).toEqual([expect.stringMatching(/photo "krakow\/99" not found/)]);
+    });
+});
+
+describe("countryAt", () => {
+    it("finds the country a point is in", () => {
+        expect(countryAt({ lat: 51.5, lng: -0.12 })).toBe("United Kingdom");
+        expect(countryAt({ lat: 35.01, lng: 135.77 })).toBe("Japan");
+    });
+    it("snaps points just off the coast, but not mid-ocean ones", () => {
+        expect(countryAt({ lat: 50.05, lng: -5.8 })).toBe("United Kingdom"); // off Land's End
+        expect(countryAt({ lat: 30, lng: -40 })).toBeUndefined();
     });
 });

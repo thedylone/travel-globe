@@ -61,9 +61,27 @@ input[type="checkbox"] {
 
 /* The pin layer sets a z-index on every pin for depth sorting; keep those inside the globe. */
 .globe {
-    position: relative;
+    position: fixed;
+    top: 0;
     z-index: 0;
     isolation: isolate;
+}
+
+.credit {
+    position: absolute;
+    right: 8px;
+    bottom: 4px;
+    z-index: 1;
+    max-width: calc(100% - 16px);
+    margin: 0;
+    font-size: 10px;
+    color: rgb(255 255 255 / 0.55);
+    text-align: right;
+    text-shadow: 0 1px 2px #000;
+}
+
+.credit a {
+    color: inherit;
 }
 
 .marker {
@@ -342,6 +360,45 @@ input[type="checkbox"] {
     background: var(--surface-hover);
 }
 
+.setting[data-disabled="true"] {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.segmented {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px;
+}
+
+.segmented label {
+    flex: 1;
+    padding: 5px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.segmented label:has(input:checked) {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--surface-solid);
+    font-weight: 600;
+}
+
+.segmented label:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.segmented input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
 kbd {
     margin-left: auto;
     padding: 0 6px;
@@ -391,6 +448,11 @@ kbd {
     font-size: 13px;
 }
 
+.focus-banner__playing {
+    color: var(--accent);
+    font-size: 12px;
+}
+
 .focus-banner button {
     padding: 4px 12px;
     border: 0;
@@ -400,6 +462,186 @@ kbd {
 
 .focus-banner button:hover {
     background: rgb(255 255 255 / 0.15);
+}
+
+/* ---------- timeline ---------- */
+
+.timeline-toggle {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    backdrop-filter: blur(10px);
+}
+
+.timeline-toggle[aria-expanded="true"] {
+    background: var(--text);
+    color: var(--surface-solid);
+}
+
+.timeline {
+    position: fixed;
+    left: var(--left, 0px);
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    max-height: 45dvh;
+    padding: 10px 16px 14px;
+    background: var(--surface);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border);
+    transition: transform 0.3s ease, visibility 0.3s, left 0.3s ease;
+}
+
+.timeline[data-open="false"] {
+    transform: translateY(100%);
+    visibility: hidden;
+}
+
+.timeline__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 6px;
+}
+
+.timeline__header h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.timeline__stats {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.timeline__play {
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: none;
+    font-size: 13px;
+}
+
+.timeline__play[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #04101f;
+}
+
+.timeline__close {
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--surface-hover);
+    font-size: 20px;
+    line-height: 1;
+}
+
+.timeline__scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+}
+
+.timeline__grid {
+    min-width: 560px;
+}
+
+.timeline__row {
+    --lane-height: 10px;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    align-items: center;
+}
+
+.timeline__year {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+}
+
+.timeline__track {
+    position: relative;
+    height: calc(var(--lanes, 1) * (var(--lane-height) + 3px) + 9px);
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.timeline__row--months .timeline__track {
+    height: 16px;
+    border: 0;
+}
+
+.timeline__month {
+    position: absolute;
+    top: 0;
+    padding-left: 3px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.timeline__tick {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgb(255 255 255 / 0.06);
+}
+
+.timeline__bar {
+    position: absolute;
+    top: calc(5px + var(--lane) * (var(--lane-height) + 3px));
+    height: var(--lane-height);
+    min-width: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: var(--swatch);
+    transition: transform 0.12s ease, opacity 0.2s;
+}
+
+/* Trips over New Year: square off the edge that continues in the next row. */
+.timeline__bar[data-from-prev="true"] {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.timeline__bar[data-into-next="true"] {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.timeline__bar:hover,
+.timeline__bar:focus-visible {
+    transform: scaleY(1.5);
+    z-index: 1;
+}
+
+.timeline__bar[data-hidden="true"] {
+    opacity: 0.25;
+}
+
+.timeline__bar[aria-current="true"] {
+    box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px #fff;
+    z-index: 1;
 }
 
 /* ---------- place dialog ---------- */
@@ -673,6 +915,34 @@ kbd {
 
     .focus-banner {
         max-width: calc(100vw - 32px);
+    }
+
+    .timeline-toggle {
+        top: auto;
+        right: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom));
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+    .timeline-toggle__label {
+        display: none;
+    }
+
+    .timeline {
+        left: 0;
+        padding-bottom: calc(14px + env(safe-area-inset-bottom));
+        border-radius: 16px 16px 0 0;
+    }
+
+    /* One sheet at a time: hide the other sheet's button while one is open. */
+    .timeline-toggle[aria-expanded="true"],
+    .app[data-timeline="true"] .panel-toggle,
+    .app[data-panel="true"] .timeline-toggle {
+        display: none;
     }
 
     .focus-banner__date {

@@ -16,6 +16,8 @@ export interface Stop {
     name: string;
     lat: number;
     lng: number;
+    /** Natural Earth country name, e.g. "United Kingdom". Worked out from lat/lng. */
+    country?: string;
     /** ISO dates (YYYY-MM-DD); equal for single-day stops. */
     start: string;
     end: string;

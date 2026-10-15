@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { parseDateRange } from "../../src/lib/dates.ts";
 import type { LatLng } from "../../src/lib/geo.ts";
 import type { Base, Endpoint, Media, Stop, TravelData, Trip } from "../../src/types.ts";
+import { countryAt } from "./countries.ts";
 import { type Geocoder, PlaceCache } from "./geocode.ts";
 import {
     BasesSchema,
@@ -180,9 +181,11 @@ export const loadTravelData = async ({ root, geocoder }: LoadOptions): Promise<L
             for (const m of missing) {
                 errors.push(`${sl}: photo "${m}" not found (put the original in photos/ and run \`npm run photos\`)`);
             }
+            const country = countryAt(at);
             stops.push({
                 name: s.name ?? s.place,
                 ...at,
+                ...(country ? { country } : {}),
                 ...range,
                 ...(s.note ? { note: s.note } : {}),
                 media,

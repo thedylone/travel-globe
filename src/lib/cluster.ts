@@ -86,6 +86,8 @@ export const viewFor = (points: { lat: number; lng: number }[], viewportHeight: 
     const c = centroid(points);
     // Fit the points into ~80% of the screen height, from city level up to a whole hemisphere.
     const spread = spreadDeg(points, c);
+    // One place (or several on the same spot): a regional view rather than street level.
+    if (spread < 0.01) return { ...c, altitude: 0.2 };
     const altitude = altitudeFor((spread * 2.5) / viewportHeight, viewportHeight);
-    return { ...c, altitude: Math.min(2.5, Math.max(0.25, altitude)) };
+    return { ...c, altitude: Math.min(2.5, Math.max(0.03, altitude)) };
 };
