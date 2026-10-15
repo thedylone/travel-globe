@@ -1,7 +1,7 @@
 # Travel History
 
-Trips and places I've visited, on an interactive 3D globe:
-**https://thedylone.github.io/travel-history**
+Trips and places visited, on an interactive 3D globe, built from a folder of small YAML files.
+Mine are at **https://thedylone.github.io/travel-history**; to make your own, see [Your own site](#your-own-site).
 
 - Nearby places merge into numbered clusters; zoom in (or click one) and they split apart.
 - A place visited on several trips gets one pin with a multi-coloured ring, and its dialog has a tab per visit.
@@ -24,6 +24,45 @@ Trips and places I've visited, on an interactive 3D globe:
 npm install
 npm run dev        # http://localhost:5173/travel-history/
 ```
+
+## Your own site
+
+The code (this repo, "the engine") and the trips (a "data folder") are separate, so you can keep your trips in
+a repo of your own and get engine updates with a version bump:
+
+1. Copy [`example/`](example) into a new repo. It has sample trips, a `site.yaml`, a `package.json` that
+   installs the engine from GitHub, and a workflow that deploys the site to GitHub Pages.
+2. Edit `site.yaml` (your name, and the URL the site will be at), delete the sample trips, and add your own
+   (see [Adding a trip](#adding-a-trip)).
+3. `npm install`, then `npm run dev` to see it.
+4. Push, and set *Settings › Pages › Build and deployment › Source: GitHub Actions*.
+
+To pin an engine version, add a tag to the dependency: `"travel-history": "github:thedylone/travel-history#v0.3.0"`.
+
+## Data folder
+
+```
+site.yaml             title, your name, the site's URL, social handle (all optional)
+data/trips/*.yaml     one file per trip
+data/bases.yaml       home/school/work, shown as icons; trips can start `from:` them
+data/places.json      place name → coordinates (filled in automatically)
+data/photos.json      processed photos (written by `npm run photos`)
+photos/               original photos (not committed)
+public/               served with the site: public/photos/ holds the web versions of your photos, and a file
+                      here replaces the engine's own (e.g. public/favicon/ for your own icons)
+```
+
+```yaml
+# site.yaml
+title: Travel History                         # top of the trip list, and the browser tab
+name: thedylone                               # link previews: "thedylone's travels on an interactive globe"
+url: https://thedylone.github.io/travel-history   # its path is the base path the site is built for
+twitter: "@thedylone"
+```
+
+Every command works on one data folder: `--data <folder>` if given, else `$TRAVEL_HISTORY_DATA`, else the current
+folder if it has a `site.yaml`, else the engine's `example/`. In a data repo that's the repo itself; this repo
+still holds my trips, so here it's this repo too, and `npm run dev -- --data example` shows the sample trips.
 
 ## Adding a trip
 
@@ -103,16 +142,20 @@ git ls-tree -d -z --name-only fb00002 public/images/ | xargs -0 git archive fb00
 
 ## Commands
 
+These are the same in this repo and in a data repo (where they run `travel-history <command>`). Each takes
+`--data <folder>`, e.g. `npm run dev -- --data example`.
+
 | | |
 | --- | --- |
-| `npm run dev` | dev server; reloads when anything in `data/` changes |
+| `npm run dev` | dev server; reloads when anything in `data/` or `site.yaml` changes |
 | `npm run import -- <folder>` | draft a trip from a folder of photos |
 | `npm run photos` | make web versions of new photos in `photos/` |
 | `npm run check` | validate `data/`, look up new places |
-| `npm test` | unit tests |
-| `npm run build` | production build into `dist/`, including the stats images |
-| `npm run perf` | performance check of the build (below) |
+| `npm run build` | production build into `dist/` (or `--out <folder>`), including the stats images |
+| `npm run preview` | serve the finished build |
 | `npm run stats-image -- <folder>` | render just the stats images |
+
+In this repo only: `npm test` (unit tests), `npm run typecheck`, and `npm run perf` (below).
 
 ## Performance check
 
@@ -135,7 +178,7 @@ on the CPU, so it's far slower than a real GPU. The first run needs a browser: `
 ## Deploying
 
 Pushing to `main` builds and deploys with GitHub Actions (`.github/workflows/deploy.yml`); pull requests are
-built and tested but not deployed. One-time setup: repo *Settings › Pages › Build and deployment › Source:
+built and tested but not deployed. CI also checks that `example/` builds. One-time setup: repo *Settings › Pages › Build and deployment › Source:
 GitHub Actions*. `npm run deploy` still publishes `dist/` to the `gh-pages` branch by hand if needed.
 
 ## Stats image
@@ -180,13 +223,17 @@ Tiles are loaded straight from those servers (no API keys). Stops are matched to
 ## Layout
 
 ```
-data/trips/*.yaml     one file per trip
-data/bases.yaml       home/school/work, shown as icons; trips can start `from:` them
-data/places.json      place name → coordinates (filled in automatically)
-data/photos.json      processed photos (written by `npm run photos`)
-photos/               original photos (not committed)
-public/photos/        web versions (committed)
+bin/travel-history.js the command a data repo's scripts run (scripts/cli.ts)
+example/              sample data folder, and the starting point for your own repo
 scripts/              import, photo processing, data loading and validation
 src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
 src/components/       globe, 2D map, trip panel, timeline, photo and share dialogs
+public/               the engine's fonts, textures and icons
 ```
+
+For now this repo is also my data folder (`site.yaml`, `data/`, `public/photos/`); those move to their own repo next.
+
+## Licence
+
+The code is [MIT](LICENSE). The bundled font is under the SIL Open Font License (`public/fonts/OFL.txt`), and the
+imagery has its own terms (see [Imagery and borders](#imagery-and-borders)).

@@ -10,6 +10,7 @@ import type { Trip } from "../../src/types.ts";
 import { countryAt, countryFeatures } from "./countries.ts";
 import { worldInfo } from "./world.ts";
 import { loadTravelData } from "./load.ts";
+import { EXAMPLE_DIR, loadSite, resolveDataDir } from "./site.ts";
 import { groupIntoStops } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
 
@@ -128,6 +129,56 @@ describe("loadTravelData", () => {
         write("data/trips/t.yaml", "title: t\nstops:\n  - place: x\n    lat: 1\n    lng: 2\n    date: 2024-01-01\n    photos: [krakow/99]\n");
         const { errors } = await loadTravelData({ root, geocoder: false });
         expect(errors).toEqual([expect.stringMatching(/photo "krakow\/99" not found/)]);
+    });
+});
+
+describe("site", () => {
+    let dir: string;
+    beforeEach(() => {
+        dir = fs.mkdtempSync(path.join(os.tmpdir(), "site-"));
+    });
+    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+    it("takes the base path and share-image URL from url", () => {
+        fs.writeFileSync(path.join(dir, "site.yaml"), "name: sam\nurl: https://sam.github.io/trips/\n");
+        expect(loadSite(dir)).toMatchObject({
+            title: "Travel History",
+            description: "sam's travels on an interactive globe",
+            base: "/trips/",
+            shortUrl: "sam.github.io/trips",
+        });
+    });
+
+    it("works without a site.yaml, served from the root", () => {
+        expect(loadSite(dir)).toMatchObject({ base: "/", shortUrl: "" });
+    });
+
+    it("reports bad fields", () => {
+        fs.writeFileSync(path.join(dir, "site.yaml"), "url: not a url\ntwitter: sam\n");
+        expect(() => loadSite(dir)).toThrow(/url: .*\n.*twitter: /s);
+    });
+
+    it("uses the data folder given, else the current folder with a site.yaml, else the example", () => {
+        const cwd = process.cwd();
+        const env = process.env.TRAVEL_HISTORY_DATA;
+        delete process.env.TRAVEL_HISTORY_DATA;
+        try {
+            process.chdir(dir);
+            expect(resolveDataDir("x")).toBe(path.join(fs.realpathSync(dir), "x"));
+            expect(resolveDataDir()).toBe(EXAMPLE_DIR);
+            fs.writeFileSync(path.join(dir, "site.yaml"), "");
+            expect(fs.realpathSync(resolveDataDir())).toBe(fs.realpathSync(dir));
+        } finally {
+            process.chdir(cwd);
+            if (env !== undefined) process.env.TRAVEL_HISTORY_DATA = env;
+        }
+    });
+
+    it("example/ is a valid data folder", async () => {
+        expect(() => loadSite(EXAMPLE_DIR)).not.toThrow();
+        const { data, errors } = await loadTravelData({ root: EXAMPLE_DIR, geocoder: false });
+        expect(errors).toEqual([]);
+        expect(data.trips.length).toBeGreaterThan(0);
     });
 });
 

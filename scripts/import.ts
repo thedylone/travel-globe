@@ -16,6 +16,7 @@ import exifr from "exifr";
 import type { LatLng } from "../src/lib/geo.ts";
 import { nominatimReverse } from "./lib/geocode.ts";
 import { loadTravelData, paths } from "./lib/load.ts";
+import { resolveDataDir } from "./lib/site.ts";
 import { type DraftStop, groupIntoStops, type PhotoInfo } from "./lib/stops.ts";
 import { slugify, tripYaml } from "./lib/write.ts";
 import { processPhotos } from "./photos.ts";
@@ -44,7 +45,7 @@ if (!srcArg) fail('Usage: npm run import -- <folder> [--title "Trip name"] [--fr
 const src = path.resolve(srcArg);
 if (!fs.existsSync(src) || !fs.statSync(src).isDirectory()) fail(`Not a folder: ${src}`);
 
-const root = process.cwd();
+const root = resolveDataDir();
 const title = values.title ?? path.basename(src);
 const slug = slugify(title);
 const km = Number(values.km);
