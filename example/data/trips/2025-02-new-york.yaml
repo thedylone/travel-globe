@@ -1,0 +1,7 @@
+title: new york
+from: home
+stops:
+  - place: New York
+    lat: 40.7128
+    lng: -74.006
+    date: 2025-02-14..2025-02-18

@@ -62,7 +62,7 @@ export const Panel = (props: Props) => {
             </button>
             <aside id="panel" className="panel" data-open={open} aria-label="Trips and settings">
                 <header className="panel__header">
-                    <h1>Travel History</h1>
+                    <h1>{__SITE_TITLE__}</h1>
                     <p className="panel__stats">
                         {count(shown, "trip")} · {count(stats.countries.length, "country", "countries")} ·{" "}
                         {count(stats.places, "place")} · {Math.round(stats.km).toLocaleString()} km

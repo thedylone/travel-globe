@@ -1,31 +1,65 @@
 {
   "name": "travel-history",
-  "version": "0.2.0",
-  "homepage": "https://thedylone.github.io/travel-history",
+  "version": "0.3.0",
+  "description": "Your trips and photos on an interactive 3D globe, built from a folder of YAML files",
+  "license": "MIT",
+  "homepage": "https://github.com/thedylone/travel-history",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thedylone/travel-history.git"
+  },
   "private": true,
   "type": "module",
+  "bin": {
+    "travel-history": "bin/travel-history.js"
+  },
+  "files": [
+    "LICENSE",
+    "bin",
+    "example",
+    "index.html",
+    "public",
+    "!public/photos",
+    "scripts",
+    "!scripts/**/*.test.ts",
+    "src",
+    "!src/**/*.test.ts",
+    "tsconfig.json",
+    "vite.config.ts"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build && tsx scripts/stats-image.ts dist",
-    "stats-image": "tsx scripts/stats-image.ts",
-    "preview": "vite preview",
+    "dev": "tsx scripts/cli.ts dev",
+    "build": "tsc --noEmit && tsx scripts/cli.ts build",
+    "stats-image": "tsx scripts/cli.ts stats-image",
+    "preview": "tsx scripts/cli.ts preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "check": "tsx scripts/check.ts",
-    "photos": "tsx scripts/photos.ts",
-    "import": "tsx scripts/import.ts",
+    "check": "tsx scripts/cli.ts check",
+    "photos": "tsx scripts/cli.ts photos",
+    "import": "tsx scripts/cli.ts import",
     "predeploy": "npm run build",
     "deploy": "npx --yes gh-pages@6 -d dist",
     "perf": "tsx scripts/perf.ts"
   },
   "dependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
     "d3-geo": "^3.1.1",
+    "exifr": "^7.1.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-globe.gl": "^2.38.0",
+    "sharp": "^0.35.5",
     "three": "^0.186.1",
     "topojson-client": "^3.1.0",
-    "world-atlas": "^2.0.2"
+    "tsx": "^4.23.15",
+    "vite": "^8.3.4",
+    "world-atlas": "^2.0.2",
+    "world-countries": "^5.1.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/d3-geo": "^3.1.1",
@@ -34,16 +68,8 @@
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
     "@types/topojson-client": "^3.1.5",
-    "@vitejs/plugin-react": "^6.1.2",
-    "exifr": "^7.1.3",
     "playwright": "1.56.1",
-    "sharp": "^0.35.5",
-    "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vite": "^8.3.4",
-    "vitest": "^5.0.4",
-    "world-countries": "^5.1.0",
-    "yaml": "^2.9.1",
-    "zod": "^4.6.7"
+    "vitest": "^5.0.4"
   }
 }

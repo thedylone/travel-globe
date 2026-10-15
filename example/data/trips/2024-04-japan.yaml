@@ -1,0 +1,30 @@
+title: japan
+from: home
+country: jp
+stops:
+  - place: Tokyo
+    lat: 35.6762
+    lng: 139.6503
+    date: 2024-04-02..2024-04-06
+
+  - place: Hakone
+    lat: 35.2324
+    lng: 139.1069
+    date: 2024-04-06..2024-04-07
+
+  - place: Kyoto
+    lat: 35.0116
+    lng: 135.7681
+    date: 2024-04-07..2024-04-10
+    note: Cherry blossom along the Philosopher's Path.
+
+  - place: Nara
+    name: nara deer park
+    lat: 34.6851
+    lng: 135.843
+    date: 2024-04-09
+
+  - place: Osaka
+    lat: 34.6937
+    lng: 135.5023
+    date: 2024-04-10..2024-04-12
