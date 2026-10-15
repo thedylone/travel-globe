@@ -29,6 +29,9 @@ jobs:
       # Every place must already be in data/places.json (run `npm run check` locally to fill it in).
       - run: npm run check -- --offline
       - run: npm run build
+      # Fails if the globe goes over its draw-call budget (see scripts/perf.ts).
+      - run: npx playwright install --with-deps chromium
+      - run: npm run perf
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:

@@ -27,3 +27,6 @@ yarn-error.log*
 
 # original, full-size photos (kept locally, not committed; see README)
 /photos
+
+# TypeScript build cache
+*.tsbuildinfo

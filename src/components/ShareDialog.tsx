@@ -9,18 +9,37 @@ interface Props {
     stops: { lat: number; lng: number; country?: string }[];
     /** The page's theme: the image starts in the same one. */
     theme: ShareTheme;
+    /** Some trips are hidden or one is focused: offer to zoom the map to them. */
+    filtered: boolean;
     onClose: () => void;
 }
 
 /** Published by the deploy (scripts/stats-image.ts); always shows every trip. */
 const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats", story: "stats-story", wide: "stats-wide" };
-const siteImage = (size: ShareSize, theme: ShareTheme) =>
-    `https://${__SITE_URL__}/${STATIC_IMAGES[size]}${theme === "light" ? "-light" : ""}.png`;
+const imageFile = (size: ShareSize, theme: ShareTheme) => `${STATIC_IMAGES[size]}${theme === "light" ? "-light" : ""}.png`;
+const siteImage = (size: ShareSize, theme: ShareTheme) => `https://${__SITE_URL__}/${imageFile(size, theme)}`;
 
-export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) => {
+/**
+ * The image this deploy published, if it's there (it isn't on the dev server).
+ * It was built from the same data as this page, so with no trips filtered it's
+ * exactly what we'd draw: use it and skip loading borders and fonts.
+ */
+const deployedImage = async (size: ShareSize, theme: ShareTheme): Promise<Blob | null> => {
+    try {
+        const res = await fetch(`${import.meta.env.BASE_URL}${imageFile(size, theme)}`);
+        const blob = res.ok ? await res.blob() : null;
+        return blob?.type === "image/png" ? blob : null;
+    } catch {
+        return null;
+    }
+};
+
+export const ShareDialog = ({ stats, stops, theme: pageTheme, filtered, onClose }: Props) => {
     const dialog = useRef<HTMLDialogElement>(null);
     const [size, setSize] = useState<ShareSize>("post");
     const [theme, setTheme] = useState<ShareTheme>(pageTheme);
+    const [zoomPref, setZoom] = useState(true);
+    const zoom = filtered && zoomPref;
     const [png, setPng] = useState<{ blob: Blob; url: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -36,10 +55,14 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
         setPng(null);
         setError(null);
         (async () => {
-            const [countries, fontDataUrl] = await Promise.all([loadCountries(), shareFontDataUrl().catch(() => undefined)]);
-            const svg = renderShareSvg({ countries, stops, stats, size, theme, url: __SITE_URL__, fontDataUrl });
-            const { width, height } = SHARE_SIZES[size];
-            const blob = await svgToPng(svg, width, height);
+            let blob = filtered ? null : await deployedImage(size, theme);
+            if (!blob) {
+                // Filtered trips (or no deployed image yet): draw it here.
+                const [countries, fontDataUrl] = await Promise.all([loadCountries(), shareFontDataUrl().catch(() => undefined)]);
+                const svg = renderShareSvg({ countries, stops, stats, size, theme, zoom, url: __SITE_URL__, fontDataUrl });
+                const { width, height } = SHARE_SIZES[size];
+                blob = await svgToPng(svg, width, height);
+            }
             if (cancelled) return;
             made = URL.createObjectURL(blob);
             setPng({ blob, url: made });
@@ -48,7 +71,7 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
             cancelled = true;
             if (made) URL.revokeObjectURL(made);
         };
-    }, [size, theme, stats, stops]);
+    }, [size, theme, zoom, filtered, stats, stops]);
 
     const fileName = `travel-history-${size}${theme === "light" ? "-light" : ""}.png`;
     const file = png ? new File([png.blob], fileName, { type: "image/png" }) : null;
@@ -96,6 +119,13 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
                         </label>
                     ))}
                 </div>
+
+                {filtered && (
+                    <label className="setting share__zoom">
+                        <input type="checkbox" checked={zoomPref} onChange={(e) => setZoom(e.target.checked)} />
+                        Zoom the map to these trips
+                    </label>
+                )}
 
                 <div className="share__preview" style={{ aspectRatio: `${SHARE_SIZES[size].width} / ${SHARE_SIZES[size].height}` }}>
                     {png ? <img src={png.url} alt="Preview of the share image" /> : <p>{error ? `Couldn't make the image: ${error}` : "Drawing…"}</p>}

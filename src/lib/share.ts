@@ -1,6 +1,7 @@
-import { geoEqualEarth, geoPath } from "d3-geo";
+import { geoAzimuthalEqualArea, geoEqualEarth, geoPath, type GeoProjection } from "d3-geo";
 import type { FeatureCollection } from "geojson";
 import { type CountryFeature, type CountryPart, splitCountries, visitedParts } from "./borders";
+import { centroid } from "./geo";
 import { percent, type TravelStats } from "./stats";
 
 /**
@@ -20,9 +21,9 @@ export type ShareTheme = "dark" | "light";
 
 export const SHARE_FONT = "Bricolage Grotesque";
 
-const PALETTES: Record<ShareTheme, Record<"bg" | "land" | "visited" | "text" | "muted" | "dot", string>> = {
-    dark: { bg: "#0b1220", land: "#1f2a40", visited: "#6cb6ff", text: "#f2f5fa", muted: "#8ea0bf", dot: "#ffffff" },
-    light: { bg: "#f5f7fb", land: "#dce2ec", visited: "#2f7fd6", text: "#0e1626", muted: "#5d6a82", dot: "#0e1626" },
+const PALETTES: Record<ShareTheme, Record<"bg" | "sea" | "land" | "visited" | "text" | "muted" | "dot", string>> = {
+    dark: { bg: "#0b1220", sea: "#111b2f", land: "#1f2a40", visited: "#6cb6ff", text: "#f2f5fa", muted: "#8ea0bf", dot: "#ffffff" },
+    light: { bg: "#f5f7fb", sea: "#e8edf4", land: "#d3dbe7", visited: "#2f7fd6", text: "#0e1626", muted: "#5d6a82", dot: "#0e1626" },
 };
 
 export interface ShareInput {
@@ -36,7 +37,14 @@ export interface ShareInput {
     url: string;
     /** A data: URL of the font, embedded so a browser can rasterise the SVG with it. */
     fontDataUrl?: string;
+    /** Zoom the map to fit the stops (for a selection of trips) instead of showing the whole world. */
+    zoom?: boolean;
 }
+
+/** Shape of the zoomed map's frame (height / width): about the world map's, so it fills the same space. */
+const ZOOM_ASPECT = 0.5;
+/** A zoomed map always spans at least this many degrees, so one city still shows its region. */
+const ZOOM_MIN_SPAN_DEG = 6;
 
 type Palette = (typeof PALETTES)[ShareTheme];
 
@@ -91,15 +99,38 @@ const mapGeometry = (input: ShareInput): MapGeometry => {
     const parts = splitCountries(input.countries.filter((c) => c.properties.name !== "Antarctica"));
     const collection: FeatureCollection = { type: "FeatureCollection", features: parts };
     if (!parts.length) return { parts, visited: new Set(), collection, aspect: 0.45 };
+    if (input.zoom && input.stops.length) return { parts, visited: visitedParts(parts, input.stops), collection, aspect: ZOOM_ASPECT };
     const probe = geoPath(geoEqualEarth().fitWidth(1000, collection));
     const [[x0, y0], [x1, y1]] = probe.bounds(collection);
     return { parts, visited: visitedParts(parts, input.stops), collection, aspect: (y1 - y0) / (x1 - x0) };
 };
 
+/**
+ * Zoomed view: an equal-area projection centred on the stops (so trips across the
+ * Pacific work too), fitted to them with some padding and a minimum span.
+ */
+const zoomProjection = (stops: ShareInput["stops"], x: number, y: number, width: number, height: number): GeoProjection => {
+    const c = centroid(stops);
+    const half = ZOOM_MIN_SPAN_DEG / 2;
+    const points = [
+        ...stops.map((s) => [s.lng, s.lat]),
+        [c.lng - half, c.lat - half],
+        [c.lng + half, c.lat + half],
+    ];
+    const pad = Math.min(width, height) * 0.12;
+    return geoAzimuthalEqualArea()
+        .rotate([-c.lng, -c.lat])
+        .fitExtent([[x + pad, y + pad], [x + width - pad, y + height - pad]], { type: "MultiPoint", coordinates: points })
+        .clipExtent([[x, y], [x + width, y + height]]);
+};
+
 /** The map, fitted into the box [x, y, width, height]. */
 const mapLayer = (input: ShareInput, C: Palette, geo: MapGeometry, x: number, y: number, width: number, height: number) => {
     if (!geo.parts.length) return "";
-    const projection = geoEqualEarth().fitExtent([[x, y], [x + width, y + height]], geo.collection);
+    const zoomed = !!input.zoom && input.stops.length > 0;
+    const projection = zoomed
+        ? zoomProjection(input.stops, x, y, width, height)
+        : geoEqualEarth().fitExtent([[x, y], [x + width, y + height]], geo.collection);
     const path = geoPath(projection).digits(1);
     const shapes = (visited: boolean) =>
         geo.parts
@@ -111,12 +142,18 @@ const mapLayer = (input: ShareInput, C: Palette, geo: MapGeometry, x: number, y:
     const dots = input.stops
         .map((s) => projection([s.lng, s.lat]))
         .filter((xy): xy is [number, number] => !!xy)
-        .map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(width / 320).toFixed(1)}"/>`)
+        .map(([cx, cy]) => `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${(width / (zoomed ? 180 : 320)).toFixed(1)}"/>`)
         .join("");
-    return (
-        `<g stroke="${C.bg}" stroke-width="0.8" stroke-linejoin="round">` +
+    const map =
+        `<g stroke="${C.bg}" stroke-width="${zoomed ? 1.2 : 0.8}" stroke-linejoin="round">` +
         `<g fill="${C.land}">${shapes(false)}</g><g fill="${C.visited}">${shapes(true)}</g></g>` +
-        `<g fill="${C.dot}" stroke="${C.bg}" stroke-width="1">${dots}</g>`
+        `<g fill="${C.dot}" stroke="${C.bg}" stroke-width="${zoomed ? 1.5 : 1}">${dots}</g>`;
+    if (!zoomed) return map;
+    // A cut-out of the world: a rounded frame with the sea behind.
+    const frame = `x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${width.toFixed(1)}" height="${height.toFixed(1)}" rx="${(width * 0.03).toFixed(1)}"`;
+    return (
+        `<defs><clipPath id="map-frame"><rect ${frame}/></clipPath></defs>` +
+        `<g clip-path="url(#map-frame)"><rect ${frame} fill="${C.sea}"/>${map}</g>`
     );
 };
 
