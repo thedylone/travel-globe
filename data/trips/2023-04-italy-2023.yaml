@@ -1,0 +1,14 @@
+title: italy 2023
+from: school
+stops:
+  - place: rome
+    date: 2023-04-13..2023-04-16
+    photos: rome
+
+  - place: venice
+    date: 2023-04-16..2023-04-18
+    photos: venice
+
+  - place: milan
+    date: 2023-04-18..2023-04-19
+    photos: milan

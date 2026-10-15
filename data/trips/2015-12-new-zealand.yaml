@@ -1,0 +1,49 @@
+title: new zealand
+from: home
+stops:
+  - place: auckland
+    date: 2015-12-13
+    photos: [nz/1]
+
+  - place: hobbiton
+    date: 2015-12-14
+    photos: [nz/2, nz/3, nz/4]
+
+  - place: rotorua
+    date: 2015-12-15
+    photos: [nz/5, nz/6]
+
+  - place: taupo
+    date: 2015-12-16
+    photos: [nz/7, nz/8, nz/9, nz/10]
+
+  - place: cape kidnappers
+    date: 2015-12-17
+    photos: [nz/11, nz/12, nz/13, nz/14]
+
+  - place: wellington
+    date: 2015-12-17
+    photos: [nz/15, nz/16]
+
+  - place: lake tekapo
+    date: 2015-12-18
+    photos: [nz/17, nz/18, nz/19, nz/20, nz/21, nz/22]
+
+  - place: aoraki mount cook
+    date: 2015-12-19
+    photos: [nz/23, nz/24]
+
+  - place: milford sound
+    date: 2015-12-20
+    photos: [nz/25, nz/26, nz/27, nz/28]
+
+  - place: lake wakatipu?
+    date: 2015-12-21
+    photos: [nz/29, nz/30, nz/31]
+
+  - place: westland tai poutini national park
+    date: 2015-12-23
+    photos: [nz/32, nz/33]
+
+  - place: christchurch
+    date: 2015-12-23

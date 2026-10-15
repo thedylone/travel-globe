@@ -1,0 +1,29 @@
+title: 中国＋四国
+from: home
+stops:
+  - place: osaka
+    date: 2018-12-15..2018-12-16
+    photos: osaka/2018
+
+  - place: okayama
+    date: 2018-12-16..2018-12-17
+    photos: okayama
+
+  - place: hiroshima
+    date: 2018-12-17..2018-12-18
+    photos: hiroshima
+
+  - place: matsuyama
+    date: 2018-12-18
+    photos: matsuyama
+
+  - place: iya valley
+    date: 2018-12-19
+    photos: iya
+
+  - place: kotohira
+    date: 2018-12-19..2018-12-20
+    photos: [kotohira/1, kotohira/2, kotohira/3, kotohira/4]
+
+  - place: kobe
+    date: 2018-12-20..2018-12-21

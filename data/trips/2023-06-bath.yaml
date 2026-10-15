@@ -1,0 +1,10 @@
+title: bath
+from: school
+stops:
+  - place: bath
+    date: 2023-06-27
+    photos: bath
+
+  - place: swindon
+    date: 2023-06-27
+    photos: swindon

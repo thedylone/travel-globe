@@ -1,0 +1,10 @@
+title: melbourne to tasmania
+from: home
+stops:
+  - place: melbourne
+    date: 2019-12-22..2019-12-25
+    photos: melbourne/2019
+
+  - place: tasmania
+    date: 2019-12-25..2019-12-30
+    photos: tasmania

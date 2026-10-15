@@ -1,0 +1,10 @@
+title: spain
+from: school
+stops:
+  - place: madrid
+    date: 2024-03-13..2024-03-17
+    photos: madrid
+
+  - place: valencia
+    date: 2024-03-14
+    photos: valencia
