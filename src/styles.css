@@ -507,11 +507,20 @@ kbd {
 
 /* ---------- timeline ---------- */
 
-.timeline-toggle {
+/* ---------- top-right toolbar: timeline, 3D/2D, layers ---------- */
+
+.toolbar {
     position: fixed;
     top: 12px;
     right: 12px;
     z-index: 3;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.timeline-toggle,
+.toolbar__button {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -523,9 +532,116 @@ kbd {
     backdrop-filter: blur(10px);
 }
 
-.timeline-toggle[aria-expanded="true"] {
+.toolbar__button {
+    justify-content: center;
+    width: 40px;
+    padding: 0;
+}
+
+.timeline-toggle[aria-expanded="true"],
+.toolbar__button[aria-expanded="true"] {
     background: var(--text);
     color: var(--surface-solid);
+}
+
+.layers {
+    position: relative;
+}
+
+.layers__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-solid);
+    box-shadow: var(--shadow);
+}
+
+.layers__menu h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 6px 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.layers__menu h2:first-child {
+    margin-top: 0;
+}
+
+.layers__menu h2 kbd {
+    margin-left: 0;
+}
+
+.layers__types {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.layers__type {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+}
+
+.layers__type:hover {
+    background: var(--surface-hover);
+}
+
+.layers__type:has(input:checked) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.layers__type:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.layers__type input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.layers__thumb {
+    height: 64px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: 30% 40%;
+}
+
+/* Thumbnails: a crop of the satellite fallback image, and the map style's colours. */
+.layers__type--satellite .layers__thumb {
+    background-image: url("/textures/earth-day-low.jpg");
+    background-size: 400% 400%;
+}
+
+.layers__type--map .layers__thumb {
+    background:
+        radial-gradient(circle at 30% 45%, var(--visited) 0 18%, transparent 19%),
+        radial-gradient(ellipse at 70% 60%, var(--land) 0 30%, transparent 31%),
+        radial-gradient(ellipse at 35% 40%, var(--land) 0 34%, transparent 35%),
+        var(--bg);
+    box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .timeline {
@@ -688,10 +804,6 @@ kbd {
 /* ---------- 3D / 2D switch ---------- */
 
 .view-switch {
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    z-index: 3;
     display: flex;
     padding: 3px;
     border: 1px solid var(--border);
@@ -726,10 +838,6 @@ kbd {
     pointer-events: none;
 }
 
-/* The timeline button sits to the left of the switch. */
-.timeline-toggle {
-    right: 112px;
-}
 
 /* ---------- 2D map ---------- */
 
@@ -1420,7 +1528,18 @@ kbd {
         transform: none;
     }
 
+    /* Fit the imagery credit between the two round buttons at the bottom. */
+    .credit {
+        left: 76px;
+        right: 76px;
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        max-width: none;
+        text-align: center;
+    }
+
+    /* On phones the timeline button sits at the bottom right, by the trips button. */
     .timeline-toggle {
+        position: fixed;
         top: auto;
         right: 16px;
         bottom: calc(16px + env(safe-area-inset-bottom));
