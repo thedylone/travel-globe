@@ -1,17 +1,18 @@
 {
-  "name": "travel-history",
-  "version": "0.3.0",
+  "name": "travel-globe",
+  "version": "0.4.0",
   "description": "Your trips and photos on an interactive 3D globe, built from a folder of YAML files",
   "license": "MIT",
-  "homepage": "https://github.com/thedylone/travel-history",
+  "homepage": "https://github.com/thedylone/travel-globe",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thedylone/travel-history.git"
+    "url": "git+https://github.com/thedylone/travel-globe.git"
   },
   "private": true,
   "type": "module",
   "bin": {
-    "travel-history": "bin/travel-history.js"
+    "travel-globe": "bin/travel-globe.js",
+    "travel-history": "bin/travel-globe.js"
   },
   "files": [
     "LICENSE",
@@ -19,7 +20,6 @@
     "example",
     "index.html",
     "public",
-    "!public/photos",
     "scripts",
     "!scripts/**/*.test.ts",
     "src",
