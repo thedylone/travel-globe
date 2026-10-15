@@ -133,13 +133,7 @@ Original photos live in `photos/` and **aren't committed** (they're large, and c
 Only new or changed photos are processed; `--force` redoes all of them, and `--prune` removes web versions
 whose original is gone (it's off by default, so a fresh clone without `photos/` loses nothing).
 
-Keep a backup of `photos/` somewhere (cloud drive, external disk). The originals that used to be in
-`public/images/` are still in git history; to get them back into `photos/`:
-
-```sh
-mkdir -p photos
-git ls-tree -d -z --name-only fb00002 public/images/ | xargs -0 git archive fb00002 | tar -x --strip-components=2 -C photos
-```
+Keep a backup of `photos/` somewhere (cloud drive, external disk): nothing else has the originals.
 
 ## Commands
 
