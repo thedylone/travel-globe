@@ -9,6 +9,8 @@ interface Props {
     stops: { lat: number; lng: number; country?: string }[];
     /** The page's theme: the image starts in the same one. */
     theme: ShareTheme;
+    /** Some trips are hidden or one is focused: offer to zoom the map to them. */
+    filtered: boolean;
     onClose: () => void;
 }
 
@@ -17,10 +19,12 @@ const STATIC_IMAGES: Record<ShareSize, string> = { post: "stats", story: "stats-
 const siteImage = (size: ShareSize, theme: ShareTheme) =>
     `https://${__SITE_URL__}/${STATIC_IMAGES[size]}${theme === "light" ? "-light" : ""}.png`;
 
-export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) => {
+export const ShareDialog = ({ stats, stops, theme: pageTheme, filtered, onClose }: Props) => {
     const dialog = useRef<HTMLDialogElement>(null);
     const [size, setSize] = useState<ShareSize>("post");
     const [theme, setTheme] = useState<ShareTheme>(pageTheme);
+    const [zoomPref, setZoom] = useState(true);
+    const zoom = filtered && zoomPref;
     const [png, setPng] = useState<{ blob: Blob; url: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -37,7 +41,7 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
         setError(null);
         (async () => {
             const [countries, fontDataUrl] = await Promise.all([loadCountries(), shareFontDataUrl().catch(() => undefined)]);
-            const svg = renderShareSvg({ countries, stops, stats, size, theme, url: __SITE_URL__, fontDataUrl });
+            const svg = renderShareSvg({ countries, stops, stats, size, theme, zoom, url: __SITE_URL__, fontDataUrl });
             const { width, height } = SHARE_SIZES[size];
             const blob = await svgToPng(svg, width, height);
             if (cancelled) return;
@@ -48,7 +52,7 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
             cancelled = true;
             if (made) URL.revokeObjectURL(made);
         };
-    }, [size, theme, stats, stops]);
+    }, [size, theme, zoom, stats, stops]);
 
     const fileName = `travel-history-${size}${theme === "light" ? "-light" : ""}.png`;
     const file = png ? new File([png.blob], fileName, { type: "image/png" }) : null;
@@ -96,6 +100,13 @@ export const ShareDialog = ({ stats, stops, theme: pageTheme, onClose }: Props) 
                         </label>
                     ))}
                 </div>
+
+                {filtered && (
+                    <label className="setting share__zoom">
+                        <input type="checkbox" checked={zoomPref} onChange={(e) => setZoom(e.target.checked)} />
+                        Zoom the map to these trips
+                    </label>
+                )}
 
                 <div className="share__preview" style={{ aspectRatio: `${SHARE_SIZES[size].width} / ${SHARE_SIZES[size].height}` }}>
                     {png ? <img src={png.url} alt="Preview of the share image" /> : <p>{error ? `Couldn't make the image: ${error}` : "Drawing…"}</p>}

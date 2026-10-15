@@ -189,6 +189,15 @@ describe("renderShareSvg", () => {
         expect((svg.match(/<circle /g) ?? []).length).toBe(2);
     });
 
+    it("zooms the map to the stops when asked", () => {
+        const world = renderShareSvg({ ...input, size: "post", theme: "dark" });
+        const zoomed = renderShareSvg({ ...input, size: "post", theme: "dark", zoom: true });
+        expect(world).not.toContain("clipPath");
+        expect(zoomed).toContain('<clipPath id="map-frame">');
+        // Both stops are still drawn, inside the frame.
+        expect((zoomed.match(/<circle /g) ?? []).length).toBe(2);
+    });
+
     it("has a light version", () => {
         const dark = renderShareSvg({ ...input, size: "story", theme: "dark" });
         const light = renderShareSvg({ ...input, size: "story", theme: "light" });
