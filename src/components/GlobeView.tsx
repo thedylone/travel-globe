@@ -1,6 +1,20 @@
 import { type Ref, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import Globe, { type GlobeMethods } from "react-globe.gl";
-import { CanvasTexture, Mesh, MeshLambertMaterial, MeshPhongMaterial, type Object3D, SphereGeometry, SRGBColorSpace, type Texture, TextureLoader } from "three";
+import {
+    BufferGeometry,
+    CanvasTexture,
+    Float32BufferAttribute,
+    LineBasicMaterial,
+    LineSegments,
+    Mesh,
+    MeshLambertMaterial,
+    MeshPhongMaterial,
+    type Object3D,
+    SphereGeometry,
+    SRGBColorSpace,
+    type Texture,
+    TextureLoader,
+} from "three";
 import { borderLines, type CountryFeature, loadCountries, shadeCountries } from "../lib/borders";
 import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
 import { withAlpha } from "../lib/colors";
@@ -67,6 +81,15 @@ const IMAGERY = {
 export const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
     dark: { ocean: "#0b1a33", land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
     light: { ocean: "#c4d3e6", land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
+};
+
+/** Height of the border lines above the surface, in globe radii. */
+const BORDER_ALTITUDE = 0.001;
+
+/** "rgba(r, g, b, a)" → ["rgb(r, g, b)", a], since line materials take the alpha separately. */
+const splitAlpha = (css: string): [string, number] => {
+    const m = css.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/);
+    return m ? [`rgb(${m[1]}, ${m[2]}, ${m[3]})`, Number(m[4])] : [css, 1];
 };
 
 /** Seconds of no interaction before auto-rotate resumes. */
@@ -290,7 +313,40 @@ export const GlobeView = (props: Props) => {
         if (showCountries) loadCountries().then(setCountries, () => setCountries([]));
     }, [showCountries]);
     // Borders and coastlines as lines, so they stay sharp at any zoom (the painted fills soften up close).
-    const lines = useMemo(() => (showCountries ? borderLines(countries) : []), [showCountries, countries]);
+    // All of them are one object, drawn in one call: as separate paths they cost
+    // ~1,700 draw calls a frame, which made moving the globe sluggish.
+    const borderMaterial = useMemo(() => new LineBasicMaterial({ transparent: true, depthWrite: false }), []);
+    const borderObject = useRef<LineSegments | null>(null);
+    useEffect(() => {
+        const g = globe.current;
+        if (!g || !countries.length) return;
+        const positions: number[] = [];
+        for (const ring of borderLines(countries)) {
+            for (let i = 1; i < ring.length; i++) {
+                for (const [lng, lat] of [ring[i - 1], ring[i]]) {
+                    const { x, y, z } = g.getCoords(lat, lng, BORDER_ALTITUDE);
+                    positions.push(x, y, z);
+                }
+            }
+        }
+        const geometry = new BufferGeometry();
+        geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+        const lines = new LineSegments(geometry, borderMaterial);
+        lines.name = "borders";
+        g.scene().add(lines);
+        borderObject.current = lines;
+        return () => {
+            g.scene().remove(lines);
+            geometry.dispose();
+            borderObject.current = null;
+        };
+    }, [countries, borderMaterial]);
+    useEffect(() => {
+        const [color, opacity] = splitAlpha(satellite ? "rgba(255, 255, 255, 0.5)" : mapStyle.border);
+        borderMaterial.color.set(color);
+        borderMaterial.opacity = opacity;
+        if (borderObject.current) borderObject.current.visible = showCountries;
+    }, [satellite, mapStyle, showCountries, borderMaterial, countries]);
     // Shade the land masses near your stops (not every overseas territory of a visited country).
     const shaded = useMemo(
         () => (satellite || !countries.length ? [] : shadeCountries(countries, trips.flatMap((t) => t.stops))),
@@ -341,12 +397,8 @@ export const GlobeView = (props: Props) => {
                 globeMaterial={mapMaterial}
                 backgroundImageUrl={STARS}
                 onZoom={onZoom}
-                pathsData={lines}
-                pathPointLat={(p: unknown) => (p as number[])[1]}
-                pathPointLng={(p: unknown) => (p as number[])[0]}
-                pathPointAlt={0.001}
-                pathColor={() => (satellite ? "rgba(255, 255, 255, 0.5)" : mapStyle.border)}
-                pathTransitionDuration={0}
+                // Pins are DOM elements with their own handlers: skip raycasting the scene on every mouse move.
+                enablePointerInteraction={false}
                 htmlElementsData={htmlData}
                 htmlElement={(d) => pinCache.current.get((d as HtmlDatum).key)!}
                 htmlAltitude={0.005}
