@@ -1,7 +1,8 @@
-# Travel History
+# Travel Globe
 
 Trips and places visited, on an interactive 3D globe, built from a folder of small YAML files.
-Mine are at **https://thedylone.github.io/travel-history**; to make your own, see [Your own site](#your-own-site).
+There's a demo with sample trips at **https://thedylone.github.io/travel-globe**, and mine are at
+**https://thedylone.github.io/travel-history**. To make your own, see [Your own site](#your-own-site).
 
 - Nearby places merge into numbered clusters; zoom in (or click one) and they split apart.
 - A place visited on several trips gets one pin with a multi-coloured ring, and its dialog has a tab per visit.
@@ -22,7 +23,7 @@ Mine are at **https://thedylone.github.io/travel-history**; to make your own, se
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173/travel-history/
+npm run dev        # http://localhost:5173/, with the sample trips in example/
 ```
 
 ## Your own site
@@ -37,7 +38,7 @@ a repo of your own and get engine updates with a version bump:
 3. `npm install`, then `npm run dev` to see it.
 4. Push, and set *Settings › Pages › Build and deployment › Source: GitHub Actions*.
 
-To pin an engine version, add a tag to the dependency: `"travel-history": "github:thedylone/travel-history#v0.3.0"`.
+To pin an engine version, add a tag to the dependency: `"travel-globe": "github:thedylone/travel-globe#v0.4.0"`.
 
 ## Data folder
 
@@ -61,8 +62,8 @@ twitter: "@thedylone"
 ```
 
 Every command works on one data folder: `--data <folder>` if given, else `$TRAVEL_HISTORY_DATA`, else the current
-folder if it has a `site.yaml`, else the engine's `example/`. In a data repo that's the repo itself; this repo
-still holds my trips, so here it's this repo too, and `npm run dev -- --data example` shows the sample trips.
+folder if it has a `site.yaml`, else the engine's `example/`. In a data repo that's the repo itself; in this repo
+it's `example/`, and `npm run dev -- --data ../my-travels` shows another folder.
 
 ## Adding a trip
 
@@ -142,8 +143,9 @@ git ls-tree -d -z --name-only fb00002 public/images/ | xargs -0 git archive fb00
 
 ## Commands
 
-These are the same in this repo and in a data repo (where they run `travel-history <command>`). Each takes
-`--data <folder>`, e.g. `npm run dev -- --data example`.
+These are the same in this repo and in a data repo (where they run `travel-globe <command>`). Each takes
+`--data <folder>`, e.g. `npm run dev -- --data ../my-travels`. The command is also installed as `travel-history`, its
+name before the engine was renamed, so data repos set up with that name keep working.
 
 | | |
 | --- | --- |
@@ -177,8 +179,9 @@ on the CPU, so it's far slower than a real GPU. The first run needs a browser: `
 
 ## Deploying
 
-Pushing to `main` builds and deploys with GitHub Actions (`.github/workflows/deploy.yml`); pull requests are
-built and tested but not deployed. CI also checks that `example/` builds. One-time setup: repo *Settings › Pages › Build and deployment › Source:
+Pushing to `main` tests the engine and deploys the demo, built from `example/`, with GitHub Actions
+(`.github/workflows/deploy.yml`); pull requests are built and tested but not deployed. A data repo deploys itself
+with the workflow in `example/.github/`. One-time setup: repo *Settings › Pages › Build and deployment › Source:
 GitHub Actions*. `npm run deploy` still publishes `dist/` to the `gh-pages` branch by hand if needed.
 
 ## Stats image
@@ -223,15 +226,13 @@ Tiles are loaded straight from those servers (no API keys). Stops are matched to
 ## Layout
 
 ```
-bin/travel-history.js the command a data repo's scripts run (scripts/cli.ts)
+bin/travel-globe.js   the command a data repo's scripts run (scripts/cli.ts)
 example/              sample data folder, and the starting point for your own repo
 scripts/              import, photo processing, data loading and validation
 src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
 src/components/       globe, 2D map, trip panel, timeline, photo and share dialogs
 public/               the engine's fonts, textures and icons
 ```
-
-For now this repo is also my data folder (`site.yaml`, `data/`, `public/photos/`); those move to their own repo next.
 
 ## Licence
 
