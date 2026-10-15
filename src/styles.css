@@ -626,21 +626,12 @@ kbd {
     height: 64px;
     border-radius: 6px;
     background-size: cover;
-    background-position: 30% 40%;
+    background-position: center;
 }
 
-/* Thumbnails: a crop of the satellite fallback image, and the map style's colours. */
-.layers__type--satellite .layers__thumb {
-    background-image: url("/textures/earth-day-low.jpg");
-    background-size: 400% 400%;
-}
-
-.layers__type--map .layers__thumb {
-    background:
-        radial-gradient(circle at 30% 45%, var(--visited) 0 18%, transparent 19%),
-        radial-gradient(ellipse at 70% 60%, var(--land) 0 30%, transparent 31%),
-        radial-gradient(ellipse at 35% 40%, var(--land) 0 34%, transparent 35%),
-        var(--bg);
+/* Filled in with real crops (see LayersMenu); a plain colour until they're drawn. */
+.layers__thumb {
+    background-color: var(--stage);
     box-shadow: inset 0 0 0 1px var(--border);
 }
 

@@ -35,3 +35,27 @@ export const drawMapCanvas = (countries: ShadedCountry[], palette: MapPalette, w
     // Borders are drawn as lines on the globe instead, so they stay sharp up close.
     return canvas;
 };
+
+/** The area the Layers thumbnails show (most of Europe). */
+export const THUMB_BOUNDS = { west: -12, east: 40, south: 34, north: 62 };
+
+/** Crops a lng/lat box out of an equirectangular image (the whole world, −180…180 by 90…−90) into a data URL. */
+export const cropEquirect = (
+    source: CanvasImageSource,
+    sourceWidth: number,
+    width: number,
+    bounds = THUMB_BOUNDS
+) => {
+    const sourceHeight = sourceWidth / 2;
+    const sx = ((bounds.west + 180) / 360) * sourceWidth;
+    const sy = ((90 - bounds.north) / 180) * sourceHeight;
+    const sw = ((bounds.east - bounds.west) / 360) * sourceWidth;
+    const sh = ((bounds.north - bounds.south) / 180) * sourceHeight;
+    const out = document.createElement("canvas");
+    out.width = width;
+    out.height = Math.round((width * sh) / sw);
+    const ctx = out.getContext("2d")!;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, sx, sy, sw, sh, 0, 0, out.width, out.height);
+    return out.toDataURL("image/jpeg", 0.85);
+};

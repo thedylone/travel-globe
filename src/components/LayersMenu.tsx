@@ -1,13 +1,45 @@
 import { useEffect, useRef, useState } from "react";
+import { loadCountries, shadeCountries } from "../lib/borders";
+import { cropEquirect, drawMapCanvas } from "../lib/mapTexture";
 import type { ThemePref } from "../lib/theme";
-import type { GlobeSettings } from "./GlobeView";
+import { FALLBACK, type GlobeSettings, MAP_STYLE } from "./GlobeView";
 
 interface Props {
     settings: GlobeSettings;
     setSettings: (next: GlobeSettings) => void;
     themePref: ThemePref;
     setThemePref: (next: ThemePref) => void;
+    /** For the Map thumbnail: the theme in use and the stops to shade. */
+    theme: "light" | "dark";
+    stops: { lat: number; lng: number; country?: string }[];
 }
+
+const THUMB_WIDTH = 240; // 2x the card's width, for sharp screens
+
+/**
+ * Thumbnails cropped from the real thing: the satellite fallback image, and the
+ * map style as the globe paints it (your countries shaded, current theme).
+ * Made the first time the menu opens, so the borders only download if needed.
+ */
+const useThumbnails = (open: boolean, theme: "light" | "dark", stops: Props["stops"]) => {
+    const [thumbs, setThumbs] = useState<{ satellite?: string; map?: string }>({});
+    useEffect(() => {
+        if (!open) return;
+        let cancelled = false;
+        const img = new Image();
+        img.onload = () => !cancelled && setThumbs((t) => ({ ...t, satellite: cropEquirect(img, img.naturalWidth, THUMB_WIDTH) }));
+        img.src = FALLBACK.day;
+        loadCountries().then((countries) => {
+            if (cancelled) return;
+            const canvas = drawMapCanvas(shadeCountries(countries, stops), MAP_STYLE[theme], 2048);
+            setThumbs((t) => ({ ...t, map: cropEquirect(canvas, canvas.width, THUMB_WIDTH) }));
+        }, () => {});
+        return () => {
+            cancelled = true;
+        };
+    }, [open, theme, stops]);
+    return thumbs;
+};
 
 const STYLES: { value: GlobeSettings["style"]; label: string }[] = [
     { value: "satellite", label: "Satellite" },
@@ -37,8 +69,9 @@ const LayersIcon = () => (
 );
 
 /** Map type, overlays and theme, behind one button (like the layers control on map apps). */
-export const LayersMenu = ({ settings, setSettings, themePref, setThemePref }: Props) => {
+export const LayersMenu = ({ settings, setSettings, themePref, setThemePref, theme, stops }: Props) => {
     const [open, setOpen] = useState(false);
+    const thumbs = useThumbnails(open, theme, stops);
     const root = useRef<HTMLDivElement>(null);
 
     // Close on a click elsewhere or Escape.
@@ -86,7 +119,11 @@ export const LayersMenu = ({ settings, setSettings, themePref, setThemePref }: P
                                     checked={settings.style === value}
                                     onChange={() => setSettings({ ...settings, style: value })}
                                 />
-                                <span className="layers__thumb" aria-hidden="true" />
+                                <span
+                                    className="layers__thumb"
+                                    aria-hidden="true"
+                                    style={thumbs[value] ? { backgroundImage: `url(${thumbs[value]})` } : undefined}
+                                />
                                 {label}
                             </label>
                         ))}
