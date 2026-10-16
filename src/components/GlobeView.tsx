@@ -52,6 +52,8 @@ export const FALLBACK = { day: tex("earth-day-low.jpg"), night: tex("earth-night
  * Above 1 is slightly soft but needs far fewer tiles (each level is 4x as many).
  */
 const TILE_PIXEL_STRETCH = 1.4;
+/** The fallback Earth's radius, as a share of the globe's (see where it's made). */
+const FALLBACK_RADIUS = 0.995;
 
 /**
  * Satellite imagery as map tiles: the globe loads sharper tiles as you zoom in,
@@ -76,6 +78,8 @@ const IMAGERY = {
         link: "https://earthdata.nasa.gov/gibs",
     },
 };
+
+const RENDERER_CONFIG = { logarithmicDepthBuffer: true };
 
 /** Map style colours per theme, painted into the globe's texture. */
 export const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
@@ -270,12 +274,15 @@ export const GlobeView = (props: Props) => {
     }, [satellite, imagery, height]);
 
     // A low-resolution Earth just under the tiles: visible at once, covered as tiles arrive.
+    // It sits 0.5% below them: the tiles are flat facets 5° wide that dip up to ~0.2% under
+    // the true sphere, so a closer shell pokes through their middles. (The tile engine's own
+    // black backing shell is at 99%, further down still.)
     const fallback = useRef<Mesh | null>(null);
     useEffect(() => {
         const g = globe.current;
         if (!g) return;
         const r = g.getGlobeRadius();
-        const mesh = new Mesh(new SphereGeometry(r * 0.999, 96, 48), new MeshLambertMaterial({ color: "#000" }));
+        const mesh = new Mesh(new SphereGeometry(r * FALLBACK_RADIUS, 96, 48), new MeshLambertMaterial({ color: "#000" }));
         mesh.rotation.y = -Math.PI / 2; // same orientation as the globe's own sphere
         g.scene().add(mesh);
         fallback.current = mesh;
@@ -392,6 +399,9 @@ export const GlobeView = (props: Props) => {
                 ref={globe}
                 width={width}
                 height={height}
+                // The fallback Earth is a hair under the tiles. A normal depth buffer can't tell
+                // them apart once the camera is far away, so it flickered through when zoomed out.
+                rendererConfig={RENDERER_CONFIG}
                 globeImageUrl={null}
                 globeTileEngineUrl={satellite ? imagery.url : null}
                 globeMaterial={mapMaterial}
