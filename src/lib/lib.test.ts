@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Stop, Trip } from "../types";
-import { clusterPlaces, clusterRadiusDeg, zoomIntoCluster } from "./cluster";
+import { clusterPlaces, clusterRadiusDeg, dragSpeedFor, zoomIntoCluster } from "./cluster";
 import { formatDateRange, parseDateRange } from "./dates";
 import { distanceKm } from "./geo";
 import { buildPlaces, filterPlaces } from "./places";
@@ -52,6 +52,17 @@ describe("places", () => {
         const places = filterPlaces(buildPlaces([a, b]), new Set(["b"]));
         expect(places).toHaveLength(1);
         expect(places[0].visits.map((v) => v.trip.id)).toEqual(["b"]);
+    });
+});
+
+describe("drag speed", () => {
+    it("matches globe.gl up close and eases off when zoomed far out", () => {
+        expect(dragSpeedFor(0.5)).toBeCloseTo(0.15);
+        expect(dragSpeedFor(2)).toBeCloseTo(0.6);
+        expect(dragSpeedFor(2.2)).toBeGreaterThan(0.6);
+        expect(dragSpeedFor(10)).toBeLessThan(1);
+        expect(dragSpeedFor(99)).toBeLessThanOrEqual(1);
+        for (let a = 0.1; a < 20; a += 0.1) expect(dragSpeedFor(a + 0.1)).toBeGreaterThanOrEqual(dragSpeedFor(a));
     });
 });
 

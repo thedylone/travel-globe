@@ -67,6 +67,23 @@ export const clusterPlaces = (places: Place[], radiusDeg: number): Cluster[] => 
 
 export const MIN_ALTITUDE = 0.02;
 
+/** Below this drag speed, keep globe.gl's own (it grows with altitude, so close up stays precise). */
+const DRAG_KNEE = 0.6;
+/** Most a drag may turn the globe: one turn for dragging the full height of the view. */
+const DRAG_MAX = 1;
+
+/**
+ * OrbitControls' rotateSpeed for a camera altitude. globe.gl uses 0.3 × altitude, which
+ * spins the globe many times per drag when zoomed far out; above the overview this eases
+ * it toward DRAG_MAX instead (smoothly, so there's no step in feel while zooming).
+ */
+export const dragSpeedFor = (altitude: number) => {
+    const speed = altitude * 0.3;
+    if (speed <= DRAG_KNEE) return speed;
+    const room = DRAG_MAX - DRAG_KNEE;
+    return DRAG_KNEE + room * Math.tanh((speed - DRAG_KNEE) / room);
+};
+
 /**
  * Where to fly so a cluster splits up: centred on it, just low enough that its two
  * closest places are more than a pin apart.

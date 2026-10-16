@@ -16,7 +16,7 @@ import {
     TextureLoader,
 } from "three";
 import { borderLines, type CountryFeature, loadCountries, shadeCountries } from "../lib/borders";
-import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
+import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, dragSpeedFor, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
 import { withAlpha } from "../lib/colors";
 import type { LatLng } from "../lib/geo";
 import { drawMapCanvas, type MapPalette } from "../lib/mapTexture";
@@ -219,7 +219,7 @@ export const GlobeView = (props: Props) => {
     const [interacting, setInteracting] = useState(false);
     useEffect(() => {
         const controls = globe.current?.controls() as
-            | (EventTarget & { autoRotate: boolean; autoRotateSpeed: number })
+            | (EventTarget & { autoRotate: boolean; autoRotateSpeed: number; rotateSpeed: number })
             | undefined;
         if (!controls) return;
         let timer: ReturnType<typeof setTimeout>;
@@ -231,12 +231,19 @@ export const GlobeView = (props: Props) => {
             clearTimeout(timer);
             timer = setTimeout(() => setInteracting(false), RESUME_ROTATE_MS);
         };
+        // globe.gl resets rotateSpeed from the altitude on every change; this runs after it.
+        const change = () => {
+            const pov = globe.current?.pointOfView();
+            if (pov) controls.rotateSpeed = dragSpeedFor(pov.altitude);
+        };
         controls.addEventListener("start", start);
         controls.addEventListener("end", end);
+        controls.addEventListener("change", change);
         return () => {
             clearTimeout(timer);
             controls.removeEventListener("start", start);
             controls.removeEventListener("end", end);
+            controls.removeEventListener("change", change);
         };
     }, []);
     useEffect(() => {
