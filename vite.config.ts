@@ -3,6 +3,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { ENGINE_ROOT, loadSite, resolveDataDir } from "./scripts/lib/site.ts";
+import { STUDIO_ENV, studio } from "./scripts/vite-plugin-studio.ts";
 import { travelData } from "./scripts/vite-plugin-travel-data.ts";
 
 // The data folder to show (see README, "Data folder"); the travel-globe command sets it.
@@ -13,7 +14,8 @@ export default defineConfig({
     // The engine's own files (index.html, src/, public/), wherever it's installed.
     root: ENGINE_ROOT,
     base: site.base,
-    plugins: [react(), travelData({ dataDir, site })],
+    // The studio's API writes to the data folder, so only `travel-globe studio` turns it on.
+    plugins: [react(), travelData({ dataDir, site }), process.env[STUDIO_ENV] ? studio({ dataDir }) : []],
     define: {
         // Shown on the share image, e.g. "thedylone.github.io/travel-history".
         __SITE_URL__: JSON.stringify(site.shortUrl),
