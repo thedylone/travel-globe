@@ -67,7 +67,25 @@ it's `example/`, and `npm run dev -- --data ../my-travels` shows another folder.
 
 ## Adding a trip
 
-### From photos (easiest)
+### In the studio (easiest)
+
+```sh
+npm run studio
+```
+
+This opens the studio in your browser: a page for adding and editing trips, which saves straight to the trip
+files in your data folder.
+
+- **Import photos**: drop a folder of a trip's photos (or pick them). It does the same as `npm run import` below,
+  then opens the draft trip so you can tidy it up.
+- **Edit a trip**: rename stops, fix dates, add notes, reorder stops, merge a stop into the one before, and drag
+  photos from one stop to another. **Save** checks the trip and looks up any new places.
+- **New trip**: start one by hand, without photos.
+
+The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to
+publish. The studio only listens on your own computer, as it writes files.
+
+### From photos on the command line
 
 Export the trip's photos from your phone or camera into a folder, then:
 
@@ -144,6 +162,7 @@ name before the engine was renamed, so data repos set up with that name keep wor
 | | |
 | --- | --- |
 | `npm run dev` | dev server; reloads when anything in `data/` or `site.yaml` changes |
+| `npm run studio` | add and edit trips, and import photos, in your browser |
 | `npm run import -- <folder>` | draft a trip from a folder of photos |
 | `npm run photos` | make web versions of new photos in `photos/` |
 | `npm run check` | validate `data/`, look up new places |
@@ -225,6 +244,7 @@ example/              sample data folder, and the starting point for your own re
 scripts/              import, photo processing, data loading and validation
 src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
 src/components/       globe, 2D map, trip panel, timeline, photo and share dialogs
+src/studio/           the studio (studio.html); its API is scripts/vite-plugin-studio.ts
 public/               the engine's fonts, textures and icons
 ```
 

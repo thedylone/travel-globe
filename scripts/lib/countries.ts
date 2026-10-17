@@ -32,7 +32,14 @@ const vertices = (g: Geometry): Position[] =>
  * the 1:50m borders simplify away) get the nearest country within ~30 km.
  */
 export const countryAt = ({ lat, lng }: LatLng): string | undefined => {
-    const p: [number, number] = [lng, lat];
+    // Slow for points offshore, and the dev server and studio ask again on every change.
+    const key = `${lat},${lng}`;
+    if (!found.has(key)) found.set(key, lookup([lng, lat]));
+    return found.get(key);
+};
+
+const found = new Map<string, string | undefined>();
+const lookup = (p: [number, number]) => {
     const all = load();
     const inside = all.find((c) => geoContains(c, p));
     if (inside) return inside.properties.name;
