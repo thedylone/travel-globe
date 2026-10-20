@@ -80,6 +80,9 @@ files in your data folder.
   then opens the draft trip so you can tidy it up.
 - **Edit a trip**: rename stops, fix dates, add notes, drag a stop's number to reorder it, mark side trips, merge a
   stop into the one before, and drag photos from one stop to another. **Save** checks the trip and looks up any new places.
+- **Map**: each trip's stops are on a map beside them, numbered as in the list, with the route the globe will draw.
+  Drag a pin, or pick **Place on map** on a stop and click where it is, to set its lat/lng. Amber pins were just
+  looked up from the place name and aren't saved yet, so check them; stops it can't place are listed under the map.
 - **New trip**: start one by hand, without photos.
 
 The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to

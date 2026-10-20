@@ -8,7 +8,8 @@
  *   PUT    /__studio/trips/<id>         replace a trip (JSON body: the trip)
  *   POST   /__studio/trips              new trip (JSON body: the trip)
  *   DELETE /__studio/trips/<id>         delete a trip file (its photos stay)
- *   GET    /__studio/bases              keys of data/bases.yaml, for `from` and `to`
+ *   GET    /__studio/bases              data/bases.yaml, for `from` and `to`
+ *   GET    /__studio/place?q=&country=  where a place name is: data/places.json, else looked up (not saved)
  *   POST   /__studio/upload?batch=&name=   one photo for an import (body: the file; batch: any id)
  *   POST   /__studio/import             import an uploaded batch (JSON: batch, title, from, km, force)
  */
@@ -20,7 +21,7 @@ import { pipeline } from "node:stream/promises";
 import type { Plugin } from "vite";
 import YAML from "yaml";
 import type { Media } from "../src/types.ts";
-import { nominatimSearch } from "./lib/geocode.ts";
+import { nominatimSearch, PlaceCache } from "./lib/geocode.ts";
 import { ImportError, importTrip } from "./lib/importer.ts";
 import { loadTravelData, paths, resolvePhotos } from "./lib/load.ts";
 import { BasesSchema, formatIssues, PhotoManifestSchema, type TripInput, TripSchema } from "./lib/schema.ts";
@@ -165,8 +166,19 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
         }
         if (resource === "bases" && method === "GET") {
             const r = fs.existsSync(p.bases) ? BasesSchema.safeParse(YAML.parse(fs.readFileSync(p.bases, "utf8")) ?? {}) : undefined;
-            const bases = r?.success ? Object.entries(r.data).map(([key, b]) => ({ key, name: b.name, icon: b.icon })) : [];
+            const bases = r?.success ? Object.entries(r.data).map(([key, b]) => ({ key, ...b })) : [];
             return send(res, 200, { bases });
+        }
+        if (resource === "place" && method === "GET") {
+            // Looked up the same way as a build, so the studio's map shows where the globe will put it.
+            const q = (query.get("q") ?? "").trim();
+            const country = query.get("country")?.trim() || undefined;
+            if (!q) throw new HttpError(400, "no place given");
+            const cache = new PlaceCache(p.places);
+            const hit = cache.get(PlaceCache.key(q, country)) ?? (country ? cache.get(PlaceCache.key(q)) : undefined);
+            if (hit) return send(res, 200, { at: hit, saved: true });
+            // Not written to data/places.json: that happens when a trip using it is saved.
+            return send(res, 200, { at: await nominatimSearch(q, country), saved: false });
         }
         if (resource === "upload" && method === "POST") {
             const batch = query.get("batch") ?? "";
