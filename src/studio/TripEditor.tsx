@@ -23,7 +23,8 @@ interface Props {
 
 type Status = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string; errors: string[] };
 
-const DRAG_TYPE = "application/x-studio-photo";
+const DRAG_PHOTO = "application/x-studio-photo";
+const DRAG_STOP = "application/x-studio-stop";
 
 export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     const [view, setView] = useState<TripView>();
@@ -161,8 +162,10 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
                         stop={s}
                         index={i}
                         count={draft.stops.length}
+                        base={draft.stops.slice(0, i).findLast((x) => !x.side)?.place}
                         onChange={(patch) => editStop(i, patch)}
-                        onMove={(by) => editStops((st) => moveStop(st, i, by))}
+                        onMove={(by) => editStops((st) => moveStop(st, i, i + by))}
+                        onDropStop={(from) => editStops((st) => moveStop(st, from, i))}
                         onMerge={() => editStops((st) => mergeIntoPrevious(st, i))}
                         onDelete={() => {
                             if (s.media.length && !confirm(`Remove this stop? Its ${s.media.length} photo(s) stay on disk.`)) return;
@@ -182,7 +185,10 @@ interface StopProps {
     stop: DraftStop;
     index: number;
     count: number;
+    /** The main stop a side trip goes out from. */
+    base?: string;
     onChange: (patch: Partial<DraftStop>) => void;
+    onDropStop: (from: number) => void;
     onMove: (by: -1 | 1) => void;
     onMerge: () => void;
     onDelete: () => void;
@@ -190,28 +196,42 @@ interface StopProps {
     onRemovePhoto: (photo: string) => void;
 }
 
-const StopCard = ({ stop, index, count, onChange, onMove, onMerge, onDelete, onDropPhoto, onRemovePhoto }: StopProps) => {
+const StopCard = ({ stop, index, count, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto }: StopProps) => {
     const [over, setOver] = useState(false);
     const hasAt = stop.lat.trim() !== "" && stop.lng.trim() !== "";
     return (
         <li
-            className={`stop ${over ? "drop" : ""}`}
+            className={`stop ${stop.side ? "side" : ""} ${over ? "drop" : ""}`}
             onDragOver={(e) => {
-                if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+                if (!e.dataTransfer.types.includes(DRAG_PHOTO) && !e.dataTransfer.types.includes(DRAG_STOP)) return;
                 e.preventDefault();
                 setOver(true);
             }}
             onDragLeave={() => setOver(false)}
             onDrop={(e) => {
                 setOver(false);
-                const data = e.dataTransfer.getData(DRAG_TYPE);
+                const stopFrom = e.dataTransfer.getData(DRAG_STOP);
+                if (stopFrom) return onDropStop(Number(stopFrom));
+                const data = e.dataTransfer.getData(DRAG_PHOTO);
                 if (!data) return;
                 const { photo, from } = JSON.parse(data) as { photo: string; from: number };
                 onDropPhoto(photo, from);
             }}
         >
             <div className="stop-head">
-                <span className="stop-n">{index + 1}</span>
+                <span
+                    className="stop-n"
+                    draggable
+                    title="Drag to reorder"
+                    onDragStart={(e) => {
+                        e.dataTransfer.setData(DRAG_STOP, String(index));
+                        e.dataTransfer.effectAllowed = "move";
+                        const card = e.currentTarget.closest("li");
+                        if (card) e.dataTransfer.setDragImage(card, 20, 20);
+                    }}
+                >
+                    {index + 1}
+                </span>
                 <input
                     className="stop-place"
                     value={stop.place}
@@ -229,6 +249,10 @@ const StopCard = ({ stop, index, count, onChange, onMove, onMerge, onDelete, onD
                 <label>
                     Date
                     <input value={stop.date} placeholder="2024-03-07 or 2024-03-07..2024-03-09" onChange={(e) => onChange({ date: e.target.value })} />
+                </label>
+                <label className="check" title="Out from the stop before it and back again, e.g. a day trip">
+                    <input type="checkbox" checked={stop.side} disabled={index === 0} onChange={(e) => onChange({ side: e.target.checked })} />
+                    {stop.side && base ? `Side trip from ${base}` : "Side trip"}
                 </label>
                 <label>
                     Label
@@ -268,7 +292,10 @@ const StopCard = ({ stop, index, count, onChange, onMove, onMerge, onDelete, onD
                         key={m.id}
                         draggable
                         title={`${m.id} · drag to another stop`}
-                        onDragStart={(e) => e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ photo: m.id, from: index }))}
+                        onDragStart={(e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData(DRAG_PHOTO, JSON.stringify({ photo: m.id, from: index }));
+                        }}
                     >
                         <img src={siteUrl(m.thumb)} alt={m.id} loading="lazy" />
                         {m.kind === "video" && <span className="video">▶</span>}

@@ -16,7 +16,7 @@ import type { LatLng } from "../../src/lib/geo.ts";
 import { processPhotos } from "../photos.ts";
 import { nominatimReverse } from "./geocode.ts";
 import { loadTravelData, paths } from "./load.ts";
-import { type DraftStop, groupIntoStops, type PhotoInfo } from "./stops.ts";
+import { type DraftStop, foldSideTrips, groupIntoStops, type PhotoInfo } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
 
 export const IMAGE = /\.(jpe?g|png|webp|avif|tiff?|gif)$/i;
@@ -120,10 +120,13 @@ export const importTrip = async ({ root, src, title: givenTitle, from, km = 15, 
     const photos = await readPhotoInfo(media);
 
     // --- 2. group into stops ---
-    const { stops, unplaced } = groupIntoStops(photos, km);
+    const grouped = groupIntoStops(photos, km);
+    const stops = foldSideTrips(grouped.stops, km);
+    const { unplaced } = grouped;
     if (!stops.length) throw new ImportError("None of the photos have a date or location, so there's nothing to place on the map.");
     const located = photos.filter((p) => p.at).length;
-    log(`${located}/${photos.length} have a location; ${stops.length} stop(s).`);
+    const sides = stops.filter((s) => s.side).length;
+    log(`${located}/${photos.length} have a location; ${stops.length} stop(s)${sides ? `, ${sides} of them side trips` : ""}.`);
 
     // --- 3. name the stops (checked first, so a clash fails before any lookups) ---
     const firstDay = stops.flatMap((s) => (s.start ? [s.start] : [])).sort()[0];
@@ -195,6 +198,7 @@ export const importTrip = async ({ root, src, title: givenTitle, from, km = 15, 
                 place: names[i],
                 ...(s.at ? { lat: +s.at.lat.toFixed(5), lng: +s.at.lng.toFixed(5) } : {}),
                 date: s.start ? (s.end && s.end !== s.start ? `${s.start}..${s.end}` : s.start) : "TODO",
+                ...(s.side ? { side: true } : {}),
                 photos: `${slug}/${stopFolders[i]}`,
             })),
         },

@@ -14,9 +14,18 @@ export interface DraftStop {
     /** "YYYY-MM-DD" */
     start?: string;
     end?: string;
+    /** Out from the main stop before it and back (see foldSideTrips). */
+    side?: boolean;
 }
 
 const ms = (time: string) => Date.parse(time.replace(" ", "T") + "Z");
+
+/** Puts a stop's photos in time order and sets its dates from them. */
+const sortAndDate = (s: DraftStop) => {
+    s.photos.sort((a, b) => (a.time ?? "~").localeCompare(b.time ?? "~"));
+    const days = s.photos.flatMap((p) => (p.time ? [p.time.slice(0, 10)] : [])).sort();
+    if (days.length) [s.start, s.end] = [days[0], days[days.length - 1]];
+};
 
 /**
  * Groups a trip's photos into stops: walking through them in time order, a photo
@@ -59,10 +68,36 @@ export const groupIntoStops = (photos: PhotoInfo[], km = 15): { stops: DraftStop
         best.photos.push(p);
     }
 
-    for (const s of stops) {
-        s.photos.sort((a, b) => (a.time ?? "~").localeCompare(b.time ?? "~"));
-        const days = s.photos.flatMap((p) => (p.time ? [p.time.slice(0, 10)] : [])).sort();
-        if (days.length) [s.start, s.end] = [days[0], days[days.length - 1]];
-    }
+    stops.forEach(sortAndDate);
     return { stops, unplaced };
+};
+
+/**
+ * Turns out-and-back trips from a base into side trips: when you come back within `km` of an
+ * earlier main stop with exactly one main stop in between (Melbourne, Gold Coast, Melbourne),
+ * the return joins the earlier stop and the one in between becomes a side trip of it.
+ * Longer loops (A, B, C, A) are left as they are.
+ */
+export const foldSideTrips = (stops: DraftStop[], km = 15): DraftStop[] => {
+    const out: DraftStop[] = [];
+    for (const s of stops) {
+        let base = -1;
+        if (s.at) {
+            for (let i = out.length - 2; i >= 0; i--) {
+                if (out[i].side) continue;
+                const between = out.slice(i + 1).filter((x) => !x.side).length;
+                if (between === 1 && out[i].at && distanceKm(out[i].at!, s.at) <= km) base = i;
+                break;
+            }
+        }
+        if (base < 0) {
+            out.push(s);
+            continue;
+        }
+        const b = out[base];
+        b.photos.push(...s.photos);
+        sortAndDate(b);
+        for (const x of out.slice(base + 1)) x.side = true;
+    }
+    return out;
 };

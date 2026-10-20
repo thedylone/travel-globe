@@ -14,6 +14,8 @@ export const StopSchema = z
         lng: lng.optional(),
         /** "YYYY-MM-DD" or "YYYY-MM-DD..YYYY-MM-DD". */
         date: z.string(),
+        /** A side trip: out from the main stop before it and back again (e.g. a day trip). */
+        side: z.boolean().optional(),
         note: z.string().optional(),
         /** A folder under photos/ ("krakow") or a list of photos ("nz/2", "nz/3.jpg"). */
         photos: z.union([z.string(), z.array(z.string())]).optional(),

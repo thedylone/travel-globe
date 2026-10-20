@@ -22,7 +22,7 @@ interface TripOut {
     stops: Record<string, unknown>[];
 }
 
-const STOP_KEYS = ["place", "name", "lat", "lng", "date", "note", "photos"];
+const STOP_KEYS = ["place", "name", "lat", "lng", "date", "side", "note", "photos"];
 
 /** Writes a trip file in the hand-editable layout used in data/trips/. */
 export const tripYaml = (trip: TripOut, header?: string) => {

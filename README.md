@@ -78,8 +78,8 @@ files in your data folder.
 
 - **Import photos**: drop a folder of a trip's photos (or pick them). It does the same as `npm run import` below,
   then opens the draft trip so you can tidy it up.
-- **Edit a trip**: rename stops, fix dates, add notes, reorder stops, merge a stop into the one before, and drag
-  photos from one stop to another. **Save** checks the trip and looks up any new places.
+- **Edit a trip**: rename stops, fix dates, add notes, drag a stop's number to reorder it, mark side trips, merge a
+  stop into the one before, and drag photos from one stop to another. **Save** checks the trip and looks up any new places.
 - **New trip**: start one by hand, without photos.
 
 The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to
@@ -94,7 +94,8 @@ npm run import -- ~/Desktop/iceland --title "iceland" --from school
 ```
 
 This reads the time and GPS position in each photo, groups them into stops (a new stop whenever you moved more
-than 15 km; change with `--km`), names each stop from OpenStreetMap, copies the originals into
+than 15 km; change with `--km`), turns out-and-back trips into side trips (Melbourne, Gold Coast, Melbourne becomes
+Melbourne with a side trip to the Gold Coast), names each stop from OpenStreetMap, copies the originals into
 `photos/iceland/<stop>/`, makes the web-sized versions, and writes a draft `data/trips/2024-02-iceland.yaml`.
 
 Open the draft, fix up names and dates, and that's it. `npm run dev` shows it on the globe straight away.
@@ -126,6 +127,10 @@ stops:
     lat: 52.2297        # exact coordinates instead of a lookup
     lng: 21.0122
     date: 2024-03-09..2024-03-10
+
+  - place: Żelazowa Wola
+    date: 2024-03-10
+    side: true          # a side trip: out from the stop before it (Warsaw) and back again
 ```
 
 Optional at the top: `to:` (where the trip ended, if not where it started) and `country: pl` to steer lookups

@@ -480,3 +480,28 @@ h2 {
         padding: 16px;
     }
 }
+
+/* --- side trips and reordering --- */
+
+.stop.side {
+    margin-left: 40px;
+    border-style: dashed;
+}
+
+.stop-n {
+    cursor: grab;
+}
+
+.stop-fields label.check {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 8px;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.stop-fields label.check input {
+    width: auto;
+}

@@ -21,6 +21,8 @@ export interface Stop {
     /** ISO dates (YYYY-MM-DD); equal for single-day stops. */
     start: string;
     end: string;
+    /** Out from the last main stop before it and back again, e.g. a day trip. */
+    side?: true;
     note?: string;
     media: Media[];
 }

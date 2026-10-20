@@ -8,6 +8,8 @@ export interface DraftStop {
     place: string;
     name: string;
     date: string;
+    /** A side trip from the main stop before it. */
+    side: boolean;
     /** Kept as typed until saved. */
     lat: string;
     lng: string;
@@ -28,7 +30,7 @@ export interface Draft {
 let nextKey = 1;
 
 export const emptyStop = (): DraftStop => ({
-    key: nextKey++, place: "", name: "", date: "", lat: "", lng: "", note: "", photos: undefined, media: [],
+    key: nextKey++, place: "", name: "", date: "", side: false, lat: "", lng: "", note: "", photos: undefined, media: [],
 });
 
 export const emptyDraft = (): Draft => ({ title: "", from: "", to: "", country: "", stops: [emptyStop()] });
@@ -45,6 +47,7 @@ export const toDraft = ({ trip, media }: Pick<TripView, "trip" | "media">): Draf
         place: str(s.place),
         name: str(s.name),
         date: str(s.date),
+        side: s.side === true,
         lat: str(s.lat),
         lng: str(s.lng),
         note: str(s.note),
@@ -68,6 +71,7 @@ export const fromDraft = (d: Draft): TripInput => {
             lat: num(s.lat),
             lng: num(s.lng),
             date: s.date.trim(),
+            side: s.side || undefined,
             note: s.note.trim() ? s.note.trimEnd() : undefined,
             photos: s.photos,
         })),
@@ -116,10 +120,11 @@ export const mergeIntoPrevious = (stops: DraftStop[], i: number): DraftStop[] =>
     return [...stops.slice(0, i - 1), { ...merged, date, note }, ...stops.slice(i + 1)];
 };
 
-export const moveStop = (stops: DraftStop[], i: number, by: -1 | 1): DraftStop[] => {
-    const j = i + by;
-    if (j < 0 || j >= stops.length) return stops;
+/** Moves stop `from` so it ends up at index `to`. */
+export const moveStop = (stops: DraftStop[], from: number, to: number): DraftStop[] => {
+    if (from === to || to < 0 || to >= stops.length) return stops;
     const out = [...stops];
-    [out[i], out[j]] = [out[j], out[i]];
+    const [s] = out.splice(from, 1);
+    out.splice(to, 0, s);
     return out;
 };
