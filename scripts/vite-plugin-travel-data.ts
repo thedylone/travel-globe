@@ -118,7 +118,9 @@ export const travelData = ({ dataDir, site }: { dataDir: string; site: Site }): 
                 if (!file.startsWith(dataFolder + path.sep)) return;
                 const mod = server.moduleGraph.getModuleById(RESOLVED);
                 if (mod) server.moduleGraph.invalidateModule(mod);
-                server.ws.send({ type: "full-reload" });
+                // The globe reloads itself on this (src/main.tsx); a plain full-reload would also
+                // reload the studio, losing what's being edited there.
+                server.ws.send({ type: "custom", event: "travel-data:changed" });
             };
             server.watcher.on("add", onChange).on("change", onChange).on("unlink", onChange);
 

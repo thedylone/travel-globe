@@ -8,11 +8,13 @@
 import path from "node:path";
 import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { build, createServer, preview } from "vite";
-import { DATA_ENV, ENGINE_ROOT, resolveDataDir } from "./lib/site.ts";
+import { DATA_ENV, ENGINE_ROOT, loadSite, resolveDataDir } from "./lib/site.ts";
+import { STUDIO_ENV } from "./vite-plugin-studio.ts";
 
 const USAGE = `Usage: travel-globe <command> [--data <folder>]
 
   dev [--host] [--port <n>]   dev server; reloads when the data changes
+  studio [--port <n>]         edit trips and import photos in your browser
   build [--out <folder>]      production build (default: dist/), including the stats images
   preview [--out <folder>]    serve a finished build
   check [--offline]           validate the data, look up new places
@@ -49,6 +51,20 @@ switch (command) {
         const server = await createServer({
             configFile,
             server: { ...(o.host ? { host: true } : {}), ...(o.port ? { port: Number(o.port) } : {}) },
+        });
+        await server.listen();
+        console.log(`  Data: ${process.env[DATA_ENV]}`);
+        server.printUrls();
+        server.bindCLIShortcuts({ print: true });
+        break;
+    }
+    case "studio": {
+        // The same dev server with the studio's API on; localhost only, as it writes files.
+        const o = option({ port: { type: "string" } });
+        process.env[STUDIO_ENV] = "1";
+        const server = await createServer({
+            configFile,
+            server: { open: `${loadSite(process.env[DATA_ENV]).base}studio.html`, ...(o.port ? { port: Number(o.port) } : {}) },
         });
         await server.listen();
         console.log(`  Data: ${process.env[DATA_ENV]}`);

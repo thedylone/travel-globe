@@ -19,6 +19,7 @@
     "bin",
     "example",
     "index.html",
+    "studio.html",
     "public",
     "scripts",
     "!scripts/**/*.test.ts",
@@ -32,6 +33,7 @@
   },
   "scripts": {
     "dev": "tsx scripts/cli.ts dev",
+    "studio": "tsx scripts/cli.ts studio",
     "build": "tsc --noEmit && tsx scripts/cli.ts build",
     "stats-image": "tsx scripts/cli.ts stats-image",
     "preview": "tsx scripts/cli.ts preview",

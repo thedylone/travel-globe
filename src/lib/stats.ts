@@ -1,6 +1,7 @@
 import { type Continent, CONTINENTS, type Trip, type WorldInfo } from "../types";
 import { yearOf } from "./dates";
-import { distanceKm, type LatLng } from "./geo";
+import { distanceKm } from "./geo";
+import { tripLegs } from "./legs";
 import { buildPlaces } from "./places";
 import { daysAway } from "./timeline";
 
@@ -22,8 +23,7 @@ export interface TravelStats {
 }
 
 export const tripKm = (trip: Trip) => {
-    const pts: LatLng[] = [...(trip.from ? [trip.from] : []), ...trip.stops, ...(trip.to ? [trip.to] : [])];
-    return pts.slice(1).reduce((km, p, i) => km + distanceKm(pts[i], p), 0);
+    return tripLegs(trip).reduce((km, [a, b]) => km + distanceKm(a, b), 0);
 };
 
 /** The headline numbers for a set of trips (sorted by date). Shared by the panel, the 2D map and the share image. */

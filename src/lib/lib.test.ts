@@ -3,6 +3,7 @@ import type { Stop, Trip } from "../types";
 import { clusterPlaces, clusterRadiusDeg, dragSpeedFor, zoomIntoCluster } from "./cluster";
 import { formatDateRange, parseDateRange } from "./dates";
 import { distanceKm } from "./geo";
+import { routeLegs, tripLegs } from "./legs";
 import { buildPlaces, filterPlaces } from "./places";
 import { parseHash, toHash } from "./route";
 
@@ -113,5 +114,22 @@ describe("route", () => {
 describe("geo", () => {
     it("measures great-circle distance", () => {
         expect(distanceKm({ lat: 51.5074, lng: -0.1278 }, { lat: 48.8566, lng: 2.3522 })).toBeCloseTo(344, -1);
+    });
+});
+
+describe("legs", () => {
+    const mel = stop("melbourne", -37.81, 144.96);
+    const gold = { ...stop("gold coast", -28.02, 153.4), side: true as const };
+    const phillip = { ...stop("phillip island", -38.49, 145.23), side: true as const };
+    const t = { ...trip("aus", [mel, gold, phillip]), from: { name: "home", lat: 1.35, lng: 103.82 } };
+
+    it("goes out and back for side trips", () => {
+        expect(tripLegs(t).map(([a, b]) => [a.lat, b.lat])).toEqual([
+            [1.35, -37.81], [-37.81, -28.02], [-28.02, -37.81], [-37.81, -38.49], [-38.49, -37.81],
+        ]);
+    });
+
+    it("draws each way back only once", () => {
+        expect(routeLegs(t)).toHaveLength(3);
     });
 });

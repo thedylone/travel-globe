@@ -17,11 +17,12 @@ const scalar = (v: unknown) =>
 interface TripOut {
     title: string;
     from?: string;
+    to?: string;
     country?: string;
     stops: Record<string, unknown>[];
 }
 
-const STOP_KEYS = ["place", "name", "lat", "lng", "date", "note", "photos"];
+const STOP_KEYS = ["place", "name", "lat", "lng", "date", "side", "note", "photos"];
 
 /** Writes a trip file in the hand-editable layout used in data/trips/. */
 export const tripYaml = (trip: TripOut, header?: string) => {
@@ -29,6 +30,7 @@ export const tripYaml = (trip: TripOut, header?: string) => {
     if (header) out.push(...header.trimEnd().split("\n").map((l) => `# ${l}`.trimEnd()), "");
     out.push(`title: ${scalar(trip.title)}`);
     if (trip.from) out.push(`from: ${scalar(trip.from)}`);
+    if (trip.to) out.push(`to: ${scalar(trip.to)}`);
     if (trip.country) out.push(`country: ${scalar(trip.country)}`);
     out.push("stops:");
     for (const stop of trip.stops) {

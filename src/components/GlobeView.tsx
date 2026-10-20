@@ -19,6 +19,7 @@ import { borderLines, type CountryFeature, loadCountries, shadeCountries } from 
 import { altitudeFor, type Cluster, clusterPlaces, clusterRadiusDeg, dragSpeedFor, MIN_ALTITUDE, zoomIntoCluster } from "../lib/cluster";
 import { withAlpha } from "../lib/colors";
 import type { LatLng } from "../lib/geo";
+import { routeLegs } from "../lib/legs";
 import { drawMapCanvas, type MapPalette } from "../lib/mapTexture";
 import type { Place, Visit } from "../lib/places";
 import type { Base, Trip } from "../types";
@@ -209,12 +210,9 @@ export const GlobeView = (props: Props) => {
         () =>
             trips.flatMap((trip) => {
                 const color = colors.get(trip.id) ?? "#fff";
-                const points: LatLng[] = [...(trip.from ? [trip.from] : []), ...trip.stops, ...(trip.to ? [trip.to] : [])];
-                return points.slice(1).flatMap((end, i) => {
-                    const start = points[i];
-                    if (start.lat === end.lat && start.lng === end.lng) return [];
-                    return [{ startLat: start.lat, startLng: start.lng, endLat: end.lat, endLng: end.lng, color: [withAlpha(color, 0.35), color] }];
-                });
+                return routeLegs(trip).map(([start, end]) => ({
+                    startLat: start.lat, startLng: start.lng, endLat: end.lat, endLng: end.lng, color: [withAlpha(color, 0.35), color],
+                }));
             }),
         [trips, colors]
     );

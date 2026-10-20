@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "travel-globe dev",
+    "studio": "travel-globe studio",
     "build": "travel-globe build",
     "preview": "travel-globe preview",
     "check": "travel-globe check",

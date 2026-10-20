@@ -188,6 +188,7 @@ export const loadTravelData = async ({ root, geocoder }: LoadOptions): Promise<L
                 ...at,
                 ...(country ? { country } : {}),
                 ...range,
+                ...(s.side ? { side: true as const } : {}),
                 ...(s.note ? { note: s.note } : {}),
                 media,
             });

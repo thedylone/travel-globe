@@ -11,7 +11,7 @@ import { countryAt, countryFeatures } from "./countries.ts";
 import { worldInfo } from "./world.ts";
 import { loadTravelData } from "./load.ts";
 import { EXAMPLE_DIR, loadSite, resolveDataDir } from "./site.ts";
-import { groupIntoStops } from "./stops.ts";
+import { foldSideTrips, groupIntoStops } from "./stops.ts";
 import { slugify, tripYaml } from "./write.ts";
 
 describe("groupIntoStops", () => {
@@ -36,6 +36,35 @@ describe("groupIntoStops", () => {
         expect(stops).toHaveLength(1);
         expect(stops[0].at).toBeUndefined();
         expect(stops[0]).toMatchObject({ start: "2024-01-01", end: "2024-01-02" });
+    });
+});
+
+describe("foldSideTrips", () => {
+    const at = (time: string, lat: number, lng: number) => ({ file: time, time, at: { lat, lng } });
+    const names = (stops: ReturnType<typeof foldSideTrips>) => stops.map((s) => `${s.photos[0].file}${s.side ? " (side)" : ""}`);
+
+    it("folds returns to a base into side trips", () => {
+        const { stops } = groupIntoStops([
+            at("2019-12-22 10:00:00", -37.81, 144.96), // melbourne
+            at("2019-12-24 10:00:00", -28.02, 153.4), // gold coast
+            at("2019-12-26 10:00:00", -37.82, 144.97), // melbourne
+            at("2019-12-28 10:00:00", -38.49, 145.23), // phillip island
+            at("2019-12-28 20:00:00", -37.81, 144.96), // melbourne
+        ]);
+        const folded = foldSideTrips(stops);
+        expect(names(folded)).toEqual(["2019-12-22 10:00:00", "2019-12-24 10:00:00 (side)", "2019-12-28 10:00:00 (side)"]);
+        expect(folded[0]).toMatchObject({ start: "2019-12-22", end: "2019-12-28" });
+        expect(folded[0].photos).toHaveLength(3);
+    });
+
+    it("leaves loops through several places alone", () => {
+        const { stops } = groupIntoStops([
+            at("2024-01-01 10:00:00", 35.68, 139.69), // tokyo
+            at("2024-01-02 10:00:00", 35.01, 135.77), // kyoto
+            at("2024-01-03 10:00:00", 34.69, 135.5), // osaka
+            at("2024-01-04 10:00:00", 35.68, 139.69), // tokyo
+        ]);
+        expect(foldSideTrips(stops).map((s) => s.side ?? false)).toEqual([false, false, false, false]);
     });
 });
 

@@ -1,8 +1,8 @@
 import { geoEqualEarth, geoPath } from "d3-geo";
-import type { FeatureCollection, LineString } from "geojson";
+import type { FeatureCollection, MultiLineString } from "geojson";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type CountryFeature, loadCountries, splitCountries, visitedParts } from "../lib/borders";
-import type { LatLng } from "../lib/geo";
+import { routeLegs } from "../lib/legs";
 import type { Place, Visit } from "../lib/places";
 import { countryLabel, percent, plural, type TravelStats } from "../lib/stats";
 import type { Trip } from "../types";
@@ -45,7 +45,6 @@ const useWindowSize = () => {
 /** Fits the compact continent bars. */
 const SHORT_CONTINENT: Record<string, string> = { "North America": "N. America", "South America": "S. America" };
 
-const routeOf = (trip: Trip): LatLng[] => [...(trip.from ? [trip.from] : []), ...trip.stops, ...(trip.to ? [trip.to] : [])];
 
 /** A flat world map (Equal Earth) with visited countries shaded, your places, and the headline numbers. */
 export const FlatMap = ({ trips, places, colors, focusTrip, stats, inset, onOpen, onShare }: Props) => {
@@ -186,8 +185,9 @@ export const FlatMap = ({ trips, places, colors, focusTrip, stats, inset, onOpen
         );
     };
 
-    const route = focusTrip && routeOf(focusTrip).length > 1
-        ? geoPath(projection)({ type: "LineString", coordinates: routeOf(focusTrip).map((p) => [p.lng, p.lat]) } as LineString)
+    const legs = focusTrip ? routeLegs(focusTrip) : [];
+    const route = legs.length
+        ? geoPath(projection)({ type: "MultiLineString", coordinates: legs.map((leg) => leg.map((p) => [p.lng, p.lat])) } as MultiLineString)
         : null;
 
     return (
