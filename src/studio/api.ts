@@ -1,5 +1,6 @@
 // Talks to the studio's local API (scripts/vite-plugin-studio.ts).
 import type { StopInput, TripInput } from "../../scripts/lib/schema.ts";
+import type { LatLng } from "../lib/geo";
 import type { Media } from "../types";
 
 export type { StopInput, TripInput };
@@ -27,6 +28,8 @@ export interface Base {
     key: string;
     name: string;
     icon: string;
+    lat: number;
+    lng: number;
 }
 
 export class ApiError extends Error {
@@ -56,6 +59,9 @@ export const api = {
     create: (t: TripInput) => call<TripView>("POST", "trips", t),
     remove: (id: string) => call<{ ok: true }>("DELETE", trip(id)),
     bases: () => call<{ bases: Base[] }>("GET", "bases").then((r) => r.bases),
+    /** Where a place name is: from data/places.json (`saved`), else looked up online. */
+    place: (q: string, country?: string) =>
+        call<{ at: LatLng | null; saved: boolean }>("GET", `place?${new URLSearchParams({ q, ...(country ? { country } : {}) })}`),
     upload: (batch: string, file: File) =>
         call<{ ok: true }>("POST", `upload?${new URLSearchParams({ batch, name: file.name })}`, file),
     import: (o: { batch: string; title: string; from?: string; km: number; force: boolean }) =>

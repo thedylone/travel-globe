@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { LatLng } from "../lib/geo";
 import { ApiError, api, type Base, siteUrl, type TripView } from "./api";
 import {
     type Draft,
@@ -12,6 +13,7 @@ import {
     removePhoto,
     toDraft,
 } from "./draft";
+import { StopMap, useMapLayout } from "./StopMap";
 
 interface Props {
     /** The trip to edit; none = a new trip. */
@@ -32,6 +34,10 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     const [dirty, setDirtyState] = useState(false);
     const [status, setStatus] = useState<Status>({ kind: "idle" });
     const [loadError, setLoadError] = useState<string>();
+    /** The stop being edited, and the one the next click on the map places (by key). */
+    const [active, setActive] = useState<number>();
+    const [placing, setPlacing] = useState<number>();
+    const [layout, resetLookups] = useMapLayout(draft, bases);
 
     useEffect(() => {
         if (!id) return;
@@ -56,9 +62,16 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     const editStops = (change: (s: DraftStop[]) => DraftStop[]) => edit((d) => ({ ...d, stops: change(d.stops) }));
     const editStop = (i: number, patch: Partial<DraftStop>) =>
         editStops((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+    const placeStop = (key: number, at: LatLng) =>
+        editStops((s) => s.map((x) => (x.key === key ? { ...x, lat: String(at.lat), lng: String(at.lng) } : x)));
+    // From the map: show that stop's card.
+    const selectStop = (key: number) => {
+        setActive(key);
+        document.querySelector(`[data-stop="${key}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    };
 
     if (loadError) return <p className="studio-error">Couldn't open {id}: {loadError}</p>;
-    if (!draft) return <p className="muted">Loading…</p>;
+    if (!draft || !layout) return <p className="muted">Loading…</p>;
 
     const save = async () => {
         setStatus({ kind: "saving" });
@@ -67,6 +80,8 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
             setDirty(false);
             setStatus({ kind: "saved" });
             if (!id) return onChanged(v.id);
+            // Saving put any new places in data/places.json.
+            resetLookups();
             setView(v);
             setDraft(toDraft(v));
             onChanged(v.id);
@@ -155,28 +170,37 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
                 </ul>
             )}
 
-            <ol className="stops">
-                {draft.stops.map((s, i) => (
-                    <StopCard
-                        key={s.key}
-                        stop={s}
-                        index={i}
-                        count={draft.stops.length}
-                        base={draft.stops.slice(0, i).findLast((x) => !x.side)?.place}
-                        onChange={(patch) => editStop(i, patch)}
-                        onMove={(by) => editStops((st) => moveStop(st, i, i + by))}
-                        onDropStop={(from) => editStops((st) => moveStop(st, from, i))}
-                        onMerge={() => editStops((st) => mergeIntoPrevious(st, i))}
-                        onDelete={() => {
-                            if (s.media.length && !confirm(`Remove this stop? Its ${s.media.length} photo(s) stay on disk.`)) return;
-                            editStops((st) => st.filter((_, j) => j !== i));
-                        }}
-                        onDropPhoto={(photo, from) => editStops((st) => movePhoto(st, photo, from, i))}
-                        onRemovePhoto={(photo) => editStops((st) => removePhoto(st, photo, i))}
-                    />
-                ))}
-            </ol>
-            <button onClick={() => editStops((st) => [...st, emptyStop()])}>Add a stop</button>
+            <div className="editor-body">
+                <div>
+                    <ol className="stops">
+                        {draft.stops.map((s, i) => (
+                            <StopCard
+                                key={s.key}
+                                stop={s}
+                                active={s.key === active}
+                                placing={s.key === placing}
+                                onFocus={() => setActive(s.key)}
+                                onPlace={() => setPlacing(placing === s.key ? undefined : s.key)}
+                                index={i}
+                                count={draft.stops.length}
+                                base={draft.stops.slice(0, i).findLast((x) => !x.side)?.place}
+                                onChange={(patch) => editStop(i, patch)}
+                                onMove={(by) => editStops((st) => moveStop(st, i, i + by))}
+                                onDropStop={(from) => editStops((st) => moveStop(st, from, i))}
+                                onMerge={() => editStops((st) => mergeIntoPrevious(st, i))}
+                                onDelete={() => {
+                                    if (s.media.length && !confirm(`Remove this stop? Its ${s.media.length} photo(s) stay on disk.`)) return;
+                                    editStops((st) => st.filter((_, j) => j !== i));
+                                }}
+                                onDropPhoto={(photo, from) => editStops((st) => movePhoto(st, photo, from, i))}
+                                onRemovePhoto={(photo) => editStops((st) => removePhoto(st, photo, i))}
+                            />
+                        ))}
+                    </ol>
+                    <button onClick={() => editStops((st) => [...st, emptyStop()])}>Add a stop</button>
+                </div>
+                <StopMap layout={layout} active={active} placing={placing} onSelect={selectStop} onPlace={setPlacing} onMove={placeStop} />
+            </div>
         </div>
     );
 };
@@ -185,6 +209,11 @@ interface StopProps {
     stop: DraftStop;
     index: number;
     count: number;
+    active: boolean;
+    /** Waiting for a click on the map to place it. */
+    placing: boolean;
+    onFocus: () => void;
+    onPlace: () => void;
     /** The main stop a side trip goes out from. */
     base?: string;
     onChange: (patch: Partial<DraftStop>) => void;
@@ -196,12 +225,15 @@ interface StopProps {
     onRemovePhoto: (photo: string) => void;
 }
 
-const StopCard = ({ stop, index, count, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto }: StopProps) => {
+const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto }: StopProps) => {
     const [over, setOver] = useState(false);
     const hasAt = stop.lat.trim() !== "" && stop.lng.trim() !== "";
     return (
         <li
-            className={`stop ${stop.side ? "side" : ""} ${over ? "drop" : ""}`}
+            data-stop={stop.key}
+            className={`stop ${stop.side ? "side" : ""} ${over ? "drop" : ""} ${active ? "active" : ""}`}
+            onFocus={onFocus}
+            onClick={onFocus}
             onDragOver={(e) => {
                 if (!e.dataTransfer.types.includes(DRAG_PHOTO) && !e.dataTransfer.types.includes(DRAG_STOP)) return;
                 e.preventDefault();
@@ -266,16 +298,9 @@ const StopCard = ({ stop, index, count, base, onChange, onMove, onDropStop, onMe
                     Lng
                     <input value={stop.lng} inputMode="decimal" placeholder="looked up" onChange={(e) => onChange({ lng: e.target.value })} />
                 </label>
-                {hasAt && (
-                    <a
-                        className="stop-map"
-                        href={`https://www.openstreetmap.org/?mlat=${stop.lat}&mlon=${stop.lng}#map=12/${stop.lat}/${stop.lng}`}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        Map ↗
-                    </a>
-                )}
+                <button className="link" title="Then click the map where this stop is" onClick={onPlace}>
+                    {placing ? "Click the map…" : "Place on map"}
+                </button>
                 {hasAt && (
                     <button className="link" title="Clear lat/lng so the place name is looked up instead" onClick={() => onChange({ lat: "", lng: "" })}>
                         Look up by name
