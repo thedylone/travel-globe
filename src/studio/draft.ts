@@ -110,6 +110,10 @@ export const makeCover = (stops: DraftStop[], id: string, at: number): DraftStop
 export const removePhotos = (stops: DraftStop[], ids: Set<string>): DraftStop[] =>
     stops.map((s) => (s.media.some((m) => ids.has(m.id)) ? withMedia(s, s.media.filter((m) => !ids.has(m.id))) : s));
 
+/** The marked photos that "Remove all" takes. A stop's cover keeps its mark but stays: you may have picked it. */
+export const removable = (stops: DraftStop[], marked: Record<string, unknown>): Set<string> =>
+    new Set(stops.flatMap((s) => s.media.slice(1).filter((m) => marked[m.id]).map((m) => m.id)));
+
 const ends = (date: string) => {
     const [start, end = start] = date.split("..").map((x) => x.trim());
     return { start, end };

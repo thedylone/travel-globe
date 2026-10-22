@@ -74,4 +74,13 @@ describe("reviewStop", () => {
         // Apart, twelve bits is too many.
         expect(reviewStop([p("a", 500, 0n), p("x", 600, 0xffffn << 40n), p("b", 600, twelveBits)])).toEqual({});
     });
+
+    it("doesn't judge a small stop against itself", () => {
+        // Softer than the others, but with only three photos that could just be the subject.
+        expect(reviewStop([p("a", 1000, 0n), p("b", 100, 0xffffn << 16n), p("c", 1200, 0xffffn << 32n)])).toEqual({});
+    });
+
+    it("handles an empty stop", () => {
+        expect(reviewStop([])).toEqual({});
+    });
 });

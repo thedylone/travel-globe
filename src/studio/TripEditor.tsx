@@ -12,6 +12,7 @@ import {
     movePhoto,
     moveStop,
     removePhoto,
+    removable,
     removePhotos,
     toDraft,
 } from "./draft";
@@ -117,8 +118,7 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     };
 
     const problems = status.kind === "error" ? status.errors : (view?.errors ?? []);
-    // A stop's cover keeps its mark but isn't removed with the rest: you may have picked it.
-    const flagged = new Set(draft.stops.flatMap((s) => s.media.slice(1).filter((m) => flags?.[m.id]).map((m) => m.id)));
+    const flagged = removable(draft.stops, flags ?? {});
     const keep = (photo: string) =>
         setFlags((f) => {
             const { [photo]: _, ...rest } = f ?? {};
