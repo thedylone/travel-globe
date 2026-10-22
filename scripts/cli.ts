@@ -8,8 +8,9 @@
 import path from "node:path";
 import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { build, createServer, preview } from "vite";
-import { DATA_ENV, ENGINE_ROOT, loadSite, resolveDataDir } from "./lib/site.ts";
-import { STUDIO_ENV } from "./vite-plugin-studio.ts";
+// Nothing here may import a script that `run` starts (e.g. photos.ts through the studio plugin):
+// it would already be loaded, so importing it again wouldn't run it.
+import { DATA_ENV, ENGINE_ROOT, loadSite, resolveDataDir, STUDIO_ENV } from "./lib/site.ts";
 
 const USAGE = `Usage: travel-globe <command> [--data <folder>]
 

@@ -2,8 +2,8 @@
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { ENGINE_ROOT, loadSite, resolveDataDir } from "./scripts/lib/site.ts";
-import { STUDIO_ENV, studio } from "./scripts/vite-plugin-studio.ts";
+import { ENGINE_ROOT, loadSite, resolveDataDir, STUDIO_ENV } from "./scripts/lib/site.ts";
+import { studio } from "./scripts/vite-plugin-studio.ts";
 import { travelData } from "./scripts/vite-plugin-travel-data.ts";
 
 // The data folder to show (see README, "Data folder"); the travel-globe command sets it.
