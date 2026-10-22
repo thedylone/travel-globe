@@ -99,6 +99,21 @@ export const movePhoto = (stops: DraftStop[], id: string, from: number, to: numb
 export const removePhoto = (stops: DraftStop[], id: string, at: number): DraftStop[] =>
     stops.map((s, i) => (i === at ? withMedia(s, s.media.filter((m) => m.id !== id)) : s));
 
+/** Puts a photo first in its stop, which makes it the one the site opens the stop's photos on. */
+export const makeCover = (stops: DraftStop[], id: string, at: number): DraftStop[] =>
+    stops.map((s, i) => {
+        const photo = s.media.find((m) => m.id === id);
+        return i === at && photo && s.media[0] !== photo ? withMedia(s, [photo, ...s.media.filter((m) => m !== photo)]) : s;
+    });
+
+/** Takes these photos out of every stop. Stops left untouched keep their photos as written. */
+export const removePhotos = (stops: DraftStop[], ids: Set<string>): DraftStop[] =>
+    stops.map((s) => (s.media.some((m) => ids.has(m.id)) ? withMedia(s, s.media.filter((m) => !ids.has(m.id))) : s));
+
+/** The marked photos that "Remove all" takes. A stop's cover keeps its mark but stays: you may have picked it. */
+export const removable = (stops: DraftStop[], marked: Record<string, unknown>): Set<string> =>
+    new Set(stops.flatMap((s) => s.media.slice(1).filter((m) => marked[m.id]).map((m) => m.id)));
+
 const ends = (date: string) => {
     const [start, end = start] = date.split("..").map((x) => x.trim());
     return { start, end };

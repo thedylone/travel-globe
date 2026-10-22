@@ -83,6 +83,10 @@ files in your data folder.
 - **Map**: each trip's stops are on a map beside them, numbered as in the list, with the route the globe will draw.
   Drag a pin, or pick **Place on map** on a stop and click where it is, to set its lat/lng. Amber pins were just
   looked up from the place name and aren't saved yet, so check them; stops it can't place are listed under the map.
+- **Pick photos**: opening a trip checks its photos and marks the ones that look **Blurry** and the ones that
+  **Repeat** another (burst frames, or the same view twice; the sharpest of them is kept). **Remove all** takes the
+  marked ones out of the trip (their files stay on disk), or click a mark to keep that photo. Click any photo to make
+  it the stop's cover: it goes first, so the stop's photos open on it.
 - **New trip**: start one by hand, without photos.
 
 The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to

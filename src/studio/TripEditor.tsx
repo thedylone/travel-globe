@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 import type { LatLng } from "../lib/geo";
-import { ApiError, api, type Base, siteUrl, type TripView } from "./api";
+import { ApiError, api, type Base, type PhotoFlag, siteUrl, type TripView } from "./api";
 import {
     type Draft,
     type DraftStop,
     emptyDraft,
     emptyStop,
     fromDraft,
+    makeCover,
     mergeIntoPrevious,
     movePhoto,
     moveStop,
     removePhoto,
+    removable,
+    removePhotos,
     toDraft,
 } from "./draft";
 import { StopMap, useMapLayout } from "./StopMap";
@@ -28,6 +31,9 @@ type Status = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind
 const DRAG_PHOTO = "application/x-studio-photo";
 const DRAG_STOP = "application/x-studio-stop";
 
+/** Each stop's photos to check for blur and repeats; videos are skipped. */
+const reviewIds = (stops: DraftStop[]) => stops.map((s) => s.media.filter((m) => m.kind === "image").map((m) => m.id));
+
 export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     const [view, setView] = useState<TripView>();
     const [draft, setDraft] = useState<Draft | undefined>(id ? undefined : emptyDraft());
@@ -38,13 +44,24 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     const [active, setActive] = useState<number>();
     const [placing, setPlacing] = useState<number>();
     const [layout, resetLookups] = useMapLayout(draft, bases);
+    /** Photos that look blurry or repeat another, from the last check; dropped from here when you keep one. */
+    const [flags, setFlags] = useState<Record<string, PhotoFlag>>();
+    const [checking, setChecking] = useState(false);
+    const check = (stops: DraftStop[]) => {
+        setChecking(true);
+        api.review(reviewIds(stops))
+            .then(setFlags, () => setFlags(undefined))
+            .finally(() => setChecking(false));
+    };
 
     useEffect(() => {
         if (!id) return;
         api.trip(id).then(
             (v) => {
                 setView(v);
-                setDraft(toDraft(v));
+                const d = toDraft(v);
+                setDraft(d);
+                check(d.stops);
             },
             (e: Error) => setLoadError(e.message)
         );
@@ -101,6 +118,12 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
     };
 
     const problems = status.kind === "error" ? status.errors : (view?.errors ?? []);
+    const flagged = removable(draft.stops, flags ?? {});
+    const keep = (photo: string) =>
+        setFlags((f) => {
+            const { [photo]: _, ...rest } = f ?? {};
+            return rest;
+        });
     const baseList = bases.map((b) => b.key);
 
     return (
@@ -170,6 +193,25 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
                 </ul>
             )}
 
+            {flags && (
+                <div className="editor-review">
+                    {flagged.size ? (
+                        <>
+                            <span>
+                                {flagged.size} photo{flagged.size === 1 ? " looks" : "s look"} blurry or repeat{flagged.size === 1 ? "s" : ""} another;
+                                they're marked below. Click a mark to keep that photo.
+                            </span>
+                            <button onClick={() => editStops((st) => removePhotos(st, flagged))}>Remove {flagged.size === 1 ? "it" : `all ${flagged.size}`}</button>
+                        </>
+                    ) : (
+                        <span className="muted">No blurry or repeated photos {Object.keys(flags).length ? "left" : "found"}.</span>
+                    )}
+                    <button className="link" disabled={checking} onClick={() => check(draft.stops)}>
+                        {checking ? "Checking…" : "Check again"}
+                    </button>
+                </div>
+            )}
+
             <div className="editor-body">
                 <div>
                     <ol className="stops">
@@ -194,6 +236,12 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
                                 }}
                                 onDropPhoto={(photo, from) => editStops((st) => movePhoto(st, photo, from, i))}
                                 onRemovePhoto={(photo) => editStops((st) => removePhoto(st, photo, i))}
+                                onCover={(photo) => {
+                                    editStops((st) => makeCover(st, photo, i));
+                                    keep(photo);
+                                }}
+                                flags={flags}
+                                onKeep={keep}
                             />
                         ))}
                     </ol>
@@ -223,9 +271,14 @@ interface StopProps {
     onDelete: () => void;
     onDropPhoto: (photo: string, from: number) => void;
     onRemovePhoto: (photo: string) => void;
+    /** Make this photo the stop's first, the one its photos open on. */
+    onCover: (photo: string) => void;
+    flags?: Record<string, PhotoFlag>;
+    /** Drop a photo's blurry or repeat mark. */
+    onKeep: (photo: string) => void;
 }
 
-const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto }: StopProps) => {
+const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto, onCover, flags, onKeep }: StopProps) => {
     const [over, setOver] = useState(false);
     const hasAt = stop.lat.trim() !== "" && stop.lng.trim() !== "";
     return (
@@ -312,21 +365,48 @@ const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base,
                 <textarea rows={stop.note ? 2 : 1} value={stop.note} placeholder="Shown with the photos" onChange={(e) => onChange({ note: e.target.value })} />
             </label>
             <div className="photos">
-                {stop.media.map((m) => (
-                    <figure
-                        key={m.id}
-                        draggable
-                        title={`${m.id} · drag to another stop`}
-                        onDragStart={(e) => {
-                            e.stopPropagation();
-                            e.dataTransfer.setData(DRAG_PHOTO, JSON.stringify({ photo: m.id, from: index }));
-                        }}
-                    >
-                        <img src={siteUrl(m.thumb)} alt={m.id} loading="lazy" />
-                        {m.kind === "video" && <span className="video">▶</span>}
-                        <button title="Remove from this stop" onClick={() => onRemovePhoto(m.id)}>✕</button>
-                    </figure>
-                ))}
+                {stop.media.map((m, n) => {
+                    const flag = flags?.[m.id];
+                    return (
+                        <figure
+                            key={m.id}
+                            className={`${n === 0 ? "cover" : ""} ${flag ? "flagged" : ""}`}
+                            draggable
+                            title={`${m.id} · ${n === 0 ? "the cover: shown first" : "click to make it the cover"} · drag to another stop`}
+                            onClick={() => onCover(m.id)}
+                            onDragStart={(e) => {
+                                e.stopPropagation();
+                                e.dataTransfer.setData(DRAG_PHOTO, JSON.stringify({ photo: m.id, from: index }));
+                            }}
+                        >
+                            <img src={siteUrl(m.thumb)} alt={m.id} loading="lazy" />
+                            {m.kind === "video" && <span className="video">▶</span>}
+                            {n === 0 && stop.media.length > 1 && <span className="badge">Cover</span>}
+                            {flag && (
+                                <button
+                                    className="mark"
+                                    title={`${flag.blurry ? "Looks blurry" : `Looks like ${flag.similarTo}, which is kept`}. Click to keep this one.`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onKeep(m.id);
+                                    }}
+                                >
+                                    {flag.blurry ? "Blurry" : "Repeat"}
+                                </button>
+                            )}
+                            <button
+                                className="remove"
+                                title="Remove from this stop"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRemovePhoto(m.id);
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </figure>
+                    );
+                })}
                 {!stop.media.length && <p className="muted">No photos. Drag some here from another stop.</p>}
             </div>
         </li>

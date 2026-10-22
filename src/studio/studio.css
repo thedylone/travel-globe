@@ -435,6 +435,55 @@ h2 {
     opacity: 1;
 }
 
+.photos figure.cover img {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+.photos figure.flagged img {
+    opacity: 0.45;
+}
+
+.photos .badge,
+.photos figure button.mark {
+    position: absolute;
+    left: 3px;
+    padding: 0 6px;
+    font-size: 11px;
+    line-height: 18px;
+    border-radius: 9px;
+}
+
+.photos .badge {
+    top: 3px;
+    background: var(--accent);
+    color: var(--on-accent);
+    pointer-events: none;
+}
+
+.photos figure button.mark {
+    top: auto;
+    right: auto;
+    bottom: 3px;
+    background: #b3261e;
+    opacity: 1;
+}
+
+.editor-review {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0 0 16px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+}
+
+.editor-review > span {
+    flex: 1 1 280px;
+}
+
 /* --- import --- */
 
 .import {
