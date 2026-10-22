@@ -12,6 +12,7 @@
  *   GET    /__studio/place?q=&country=  where a place name is: data/places.json, else looked up (not saved)
  *   POST   /__studio/upload?batch=&name=   one photo for an import (body: the file; batch: any id)
  *   POST   /__studio/import             import an uploaded batch (JSON: batch, title, from, km, force)
+ *   POST   /__studio/review             blurry and near-duplicate photos (JSON: stops, each a list of photo ids)
  */
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -24,10 +25,10 @@ import type { Media } from "../src/types.ts";
 import { nominatimSearch, PlaceCache } from "./lib/geocode.ts";
 import { ImportError, importTrip } from "./lib/importer.ts";
 import { loadTravelData, paths, resolvePhotos } from "./lib/load.ts";
+import { type PhotoFlag, type PhotoScore, reviewStop, scorePhoto } from "./lib/review.ts";
 import { BasesSchema, formatIssues, PhotoManifestSchema, type TripInput, TripSchema } from "./lib/schema.ts";
 import { slugify, tripYaml } from "./lib/write.ts";
 
-export const STUDIO_ENV = "TRAVEL_GLOBE_STUDIO";
 const PREFIX = "/__studio/";
 const ID = /^[^/\\]+$/;
 
@@ -81,6 +82,19 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
     };
     const manifest = () =>
         fs.existsSync(p.manifest) ? PhotoManifestSchema.parse(JSON.parse(fs.readFileSync(p.manifest, "utf8"))) : {};
+
+    /** Scores by thumbnail, kept while the studio runs; a regenerated thumbnail is scored again. */
+    const scores = new Map<string, { mtime: number; score: PhotoScore }>();
+    const score = async (id: string) => {
+        const file = path.join(dataDir, "public", "photos", "thumb", `${id}.webp`);
+        if (!fs.existsSync(file)) return undefined;
+        const mtime = fs.statSync(file).mtimeMs;
+        const hit = scores.get(id);
+        if (hit?.mtime === mtime) return hit.score;
+        const s = await scorePhoto(file).catch(() => undefined);
+        if (s) scores.set(id, { mtime, score: s });
+        return s;
+    };
 
     /** Problems for each trip file, keyed by id. Looks up new places when `online`. */
     const problems = async (online: boolean) => {
@@ -219,6 +233,26 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
                 // A failed import keeps its upload so it can be retried with another title.
                 if (imported) fs.rmSync(src, { recursive: true, force: true });
             }
+        }
+        if (resource === "review" && method === "POST") {
+            const body = await readJson(req);
+            const stops: unknown = body?.stops;
+            if (!Array.isArray(stops) || !stops.every((s) => Array.isArray(s) && s.every((x) => typeof x === "string"))) {
+                throw new HttpError(400, "stops should be lists of photo ids");
+            }
+            const photos = manifest();
+            const flags: Record<string, PhotoFlag> = {};
+            for (const ids of stops as string[][]) {
+                // Videos are left alone: their thumbnail is only the first frame.
+                const scored = [];
+                for (const id of ids) {
+                    if (photos[id]?.kind !== "image") continue;
+                    const s = await score(id);
+                    if (s) scored.push({ id, ...s });
+                }
+                Object.assign(flags, reviewStop(scored));
+            }
+            return send(res, 200, { flags });
         }
         throw new HttpError(404, `no such route: ${method} ${PREFIX}${route}`);
     };

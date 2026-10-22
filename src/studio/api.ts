@@ -1,9 +1,10 @@
 // Talks to the studio's local API (scripts/vite-plugin-studio.ts).
+import type { PhotoFlag } from "../../scripts/lib/review.ts";
 import type { StopInput, TripInput } from "../../scripts/lib/schema.ts";
 import type { LatLng } from "../lib/geo";
 import type { Media } from "../types";
 
-export type { StopInput, TripInput };
+export type { PhotoFlag, StopInput, TripInput };
 
 export interface TripSummary {
     id: string;
@@ -66,6 +67,8 @@ export const api = {
         call<{ ok: true }>("POST", `upload?${new URLSearchParams({ batch, name: file.name })}`, file),
     import: (o: { batch: string; title: string; from?: string; km: number; force: boolean }) =>
         call<{ id: string; log: string[] }>("POST", "import", o),
+    /** Blurry and near-duplicate photos, by id, given each stop's photo ids. */
+    review: (stops: string[][]) => call<{ flags: Record<string, PhotoFlag> }>("POST", "review", { stops }).then((r) => r.flags),
 };
 
 /** Where the site serves a file, e.g. a photo's thumbnail. */

@@ -12,6 +12,8 @@ export const EXAMPLE_DIR = path.join(ENGINE_ROOT, "example");
 /** Set by the travel-globe command so Vite and every script read the same data folder. */
 export const DATA_ENV = "TRAVEL_GLOBE_DATA";
 export const SITE_FILE = "site.yaml";
+/** Set by `travel-globe studio` to add the studio's API to the dev server. */
+export const STUDIO_ENV = "TRAVEL_GLOBE_STUDIO";
 
 /**
  * The data folder to use: the one given, else $TRAVEL_GLOBE_DATA, else the current
