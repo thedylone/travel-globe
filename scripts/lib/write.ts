@@ -44,3 +44,9 @@ export const tripYaml = (trip: TripOut, header?: string) => {
     }
     return out.join("\n").trimEnd() + "\n";
 };
+
+/** data/photos.json, sorted with one photo per line so diffs stay readable. */
+export const manifestJson = (manifest: Record<string, unknown>) => {
+    const entries = Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
+    return `{\n${entries.map(([id, e]) => `  ${JSON.stringify(id)}: ${JSON.stringify(e)}`).join(",\n")}\n}\n`;
+};

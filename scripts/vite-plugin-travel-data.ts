@@ -72,7 +72,8 @@ const previewTags = (site: Site) => {
  */
 export const travelData = ({ dataDir, site }: { dataDir: string; site: Site }): Plugin => {
     const dataPublic = path.join(dataDir, "public");
-    const separatePublic = fs.existsSync(dataPublic) && dataPublic !== path.join(ENGINE_ROOT, "public");
+    // May not exist yet: the studio's first import makes it.
+    const separatePublic = dataPublic !== path.join(ENGINE_ROOT, "public");
     let outDir = "";
     let base = "/";
     return {
@@ -102,7 +103,7 @@ export const travelData = ({ dataDir, site }: { dataDir: string; site: Site }): 
             this.emitFile({ type: "asset", fileName: "manifest.json", source: manifest(site) });
         },
         writeBundle() {
-            if (separatePublic) fs.cpSync(dataPublic, outDir, { recursive: true });
+            if (separatePublic && fs.existsSync(dataPublic)) fs.cpSync(dataPublic, outDir, { recursive: true });
         },
         configureServer(server) {
             const dataFolder = path.join(dataDir, "data");

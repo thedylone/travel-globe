@@ -7,7 +7,8 @@
  *   GET    /__studio/trips/<id>         one trip as written, plus each stop's photos
  *   PUT    /__studio/trips/<id>         replace a trip (JSON body: the trip)
  *   POST   /__studio/trips              new trip (JSON body: the trip)
- *   DELETE /__studio/trips/<id>         delete a trip file (its photos stay)
+ *   DELETE /__studio/trips/<id>         delete a trip and its photos (those another trip shows stay)
+ *   POST   /__studio/trips/<id>/photos  add an uploaded batch to a trip (JSON: batch, km)
  *   GET    /__studio/bases              data/bases.yaml, for `from` and `to`
  *   GET    /__studio/place?q=&country=  where a place name is: data/places.json, else looked up (not saved)
  *   POST   /__studio/upload?batch=&name=   one photo for an import (body: the file; batch: any id)
@@ -22,9 +23,10 @@ import type { Plugin } from "vite";
 import YAML from "yaml";
 import type { Media } from "../src/types.ts";
 import { nominatimSearch, PlaceCache } from "./lib/geocode.ts";
-import { ImportError, importTrip } from "./lib/importer.ts";
+import { addPhotos, ImportError, importTrip } from "./lib/importer.ts";
 import { loadTravelData, paths, resolvePhotos } from "./lib/load.ts";
 import { BasesSchema, formatIssues, PhotoManifestSchema, type TripInput, TripSchema } from "./lib/schema.ts";
+import { deleteTrip } from "./lib/remove.ts";
 import { slugify, tripYaml } from "./lib/write.ts";
 
 export const STUDIO_ENV = "TRAVEL_GLOBE_STUDIO";
@@ -79,6 +81,10 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
         if (!fs.existsSync(file)) throw new HttpError(404, `no trip ${id}`);
         return YAML.parse(fs.readFileSync(file, "utf8")) ?? {};
     };
+    const batchDir = (batch: unknown) => {
+        if (typeof batch !== "string" || !/^[\w-]+$/.test(batch)) throw new HttpError(400, "bad batch");
+        return path.join(uploads, batch);
+    };
     const manifest = () =>
         fs.existsSync(p.manifest) ? PhotoManifestSchema.parse(JSON.parse(fs.readFileSync(p.manifest, "utf8"))) : {};
 
@@ -119,7 +125,10 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
 
     const routes = async (req: IncomingMessage, res: ServerResponse, route: string, query: URLSearchParams) => {
         const method = req.method ?? "GET";
-        const [resource, id] = route.split("/").map(decodeURIComponent);
+        const [resource, id, part] = route.split("/").map(decodeURIComponent);
+        if (part !== undefined && !(resource === "trips" && part === "photos" && method === "POST")) {
+            throw new HttpError(404, `no such route: ${method} ${PREFIX}${route}`);
+        }
 
         if (resource === "trips" && !id && method === "GET") {
             const found = await problems(false);
@@ -160,9 +169,29 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
             writeTrip(file, body);
             return send(res, 200, await tripView(newId, true));
         }
+        if (resource === "trips" && id && part === "photos") {
+            if (!fs.existsSync(tripFile(id))) throw new HttpError(404, `no trip ${id}`);
+            const body = await readJson(req);
+            const src = batchDir(body?.batch);
+            const log: string[] = [];
+            try {
+                const result = await addPhotos({
+                    root: dataDir,
+                    id,
+                    src,
+                    km: Number(body.km) > 0 ? Number(body.km) : 15,
+                    log: (line) => log.push(line),
+                });
+                fs.rmSync(src, { recursive: true, force: true });
+                return send(res, 200, { ...result, log, view: await tripView(id, true) });
+            } catch (e) {
+                if (e instanceof ImportError) throw new HttpError(400, e.message, { log });
+                throw e;
+            }
+        }
         if (resource === "trips" && id && method === "DELETE") {
-            fs.rmSync(tripFile(id), { force: true });
-            return send(res, 200, { ok: true });
+            tripFile(id);
+            return send(res, 200, deleteTrip(dataDir, id));
         }
         if (resource === "bases" && method === "GET") {
             const r = fs.existsSync(p.bases) ? BasesSchema.safeParse(YAML.parse(fs.readFileSync(p.bases, "utf8")) ?? {}) : undefined;
@@ -195,9 +224,7 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
         }
         if (resource === "import" && method === "POST") {
             const body = await readJson(req);
-            const batch = String(body?.batch ?? "");
-            if (!/^[\w-]+$/.test(batch)) throw new HttpError(400, "bad batch");
-            const src = path.join(uploads, batch);
+            const src = batchDir(body?.batch);
             const log: string[] = [];
             let imported = false;
             try {

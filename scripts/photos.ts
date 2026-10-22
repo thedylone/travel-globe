@@ -18,6 +18,7 @@ import sharp, { type Sharp } from "sharp";
 import { paths } from "./lib/load.ts";
 import { resolveDataDir } from "./lib/site.ts";
 import { type PhotoManifest, PhotoManifestSchema } from "./lib/schema.ts";
+import { manifestJson } from "./lib/write.ts";
 
 export const FULL_SIZE = 1600;
 export const THUMB_SIZE = 480;
@@ -200,11 +201,8 @@ export const processPhotos = async (opts: { force?: boolean; prune?: boolean; on
         removeEmpty(outDir);
     }
 
-    // One photo per line keeps diffs readable.
-    const entries = Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }));
-    const lines = entries.map(([id, e]) => `  ${JSON.stringify(id)}: ${JSON.stringify(e)}`);
-    fs.writeFileSync(manifestFile, `{\n${lines.join(",\n")}\n}\n`);
-    return { processed: done, failures, manifest: Object.fromEntries(entries) };
+    fs.writeFileSync(manifestFile, manifestJson(manifest));
+    return { processed: done, failures, manifest };
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

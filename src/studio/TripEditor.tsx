@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LatLng } from "../lib/geo";
-import { ApiError, api, type Base, siteUrl, type TripView } from "./api";
+import { ApiError, api, type Base, siteUrl, type TripView, uploadAll } from "./api";
 import {
     type Draft,
     type DraftStop,
@@ -13,6 +13,7 @@ import {
     removePhoto,
     toDraft,
 } from "./draft";
+import { HEIC, MEDIA } from "./ImportView";
 import { StopMap, useMapLayout } from "./StopMap";
 
 interface Props {
@@ -23,7 +24,13 @@ interface Props {
     onChanged: (id?: string) => void;
 }
 
-type Status = { kind: "idle" } | { kind: "saving" } | { kind: "saved" } | { kind: "error"; message: string; errors: string[] };
+type Status =
+    | { kind: "idle" }
+    | { kind: "saving" }
+    | { kind: "saved" }
+    | { kind: "adding"; done: number; of: number }
+    | { kind: "added"; message: string }
+    | { kind: "error"; message: string; errors: string[] };
 
 const DRAG_PHOTO = "application/x-studio-photo";
 const DRAG_STOP = "application/x-studio-stop";
@@ -94,10 +101,54 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
         }
     };
     const remove = async () => {
-        if (!id || !confirm(`Delete data/trips/${id}.yaml? Its photos stay in photos/ and public/photos/.`)) return;
-        await api.remove(id);
+        const photos = new Set(draft.stops.flatMap((s) => s.media.map((m) => m.id))).size;
+        const what = photos ? ` and its ${photos} photo(s) (from photos/, public/photos/ and data/photos.json; ones another trip shows are kept)` : "";
+        if (!id || !confirm(`Delete data/trips/${id}.yaml${what}? This can't be undone.`)) return;
+        try {
+            await api.remove(id);
+        } catch (e) {
+            return setStatus({ kind: "error", message: `Couldn't delete: ${(e as Error).message}`, errors: [] });
+        }
         setDirty(false);
         onChanged();
+    };
+    /** Uploads more photos and adds them to the stops they were taken at (or new stops). */
+    const addPhotos = async (picked: File[]) => {
+        if (!id) return;
+        const heic = picked.filter((f) => HEIC.test(f.name));
+        if (heic.length) {
+            return setStatus({
+                kind: "error",
+                message: `${heic.length} HEIC photo(s) can't be read yet. Export them as JPEG and pick them again.`,
+                errors: [],
+            });
+        }
+        const files = picked.filter((f) => MEDIA.test(f.name) && !f.name.startsWith("."));
+        if (!files.length) return;
+        const batch = crypto.randomUUID();
+        try {
+            setStatus({ kind: "adding", done: 0, of: files.length });
+            await uploadAll(batch, files, (done) => setStatus({ kind: "adding", done, of: files.length }));
+            setStatus({ kind: "adding", done: files.length, of: files.length });
+            const r = await api.addPhotos(id, { batch, km: 15 });
+            resetLookups();
+            setView(r.view);
+            setDraft(toDraft(r.view));
+            const parts = [
+                r.added ? `added ${r.added} photo(s)` : "no new photos",
+                r.newStops ? `${r.newStops} new stop(s)` : "",
+                r.unplaced ? `${r.unplaced} without a date or place left in unsorted/` : "",
+                r.skipped ? `${r.skipped} already in the trip` : "",
+            ].filter(Boolean);
+            setStatus({ kind: "added", message: parts.join(", ") });
+            onChanged(id);
+        } catch (e) {
+            setStatus({
+                kind: "error",
+                message: `Couldn't add the photos: ${(e as Error).message}`,
+                errors: e instanceof ApiError ? (e.body.log ?? []) : [],
+            });
+        }
     };
 
     const problems = status.kind === "error" ? status.errors : (view?.errors ?? []);
@@ -118,8 +169,32 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
                             On the globe ↗
                         </a>
                     )}
+                    {id &&
+                        (dirty || status.kind === "adding" ? (
+                            <button disabled title={dirty ? "Save your changes first" : undefined}>
+                                {status.kind === "adding"
+                                    ? status.done < status.of
+                                        ? `Copying ${status.done}/${status.of}…`
+                                        : "Adding…"
+                                    : "Add photos"}
+                            </button>
+                        ) : (
+                            <label className="button" title="Each joins the stop it was taken at; the rest make new stops">
+                                Add photos
+                                <input
+                                    type="file"
+                                    hidden
+                                    multiple
+                                    accept="image/*,video/*"
+                                    onChange={(e) => {
+                                        addPhotos([...(e.target.files ?? [])]);
+                                        e.target.value = "";
+                                    }}
+                                />
+                            </label>
+                        ))}
                     {id && (
-                        <button className="danger" onClick={remove}>
+                        <button className="danger" disabled={status.kind === "adding"} onClick={remove}>
                             Delete
                         </button>
                     )}
@@ -131,6 +206,7 @@ export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
             <p className="muted editor-file">
                 {id ? `data/trips/${id}.yaml` : "Saved as data/trips/<year-month>-<title>.yaml"}
                 {status.kind === "saved" && " · saved"}
+                {status.kind === "added" && ` · ${status.message}`}
                 {dirty && " · unsaved changes"}
             </p>
 

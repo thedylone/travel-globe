@@ -57,7 +57,15 @@ export const api = {
     trip: (id: string) => call<TripView>("GET", trip(id)),
     save: (id: string, t: TripInput) => call<TripView>("PUT", trip(id), t),
     create: (t: TripInput) => call<TripView>("POST", "trips", t),
-    remove: (id: string) => call<{ ok: true }>("DELETE", trip(id)),
+    /** Deletes the trip and its photos; `kept` are the ones another trip also shows. */
+    remove: (id: string) => call<{ removed: number; kept: number }>("DELETE", trip(id)),
+    /** Adds an uploaded batch to a trip: to the stops they were taken at, or new ones. */
+    addPhotos: (id: string, o: { batch: string; km: number }) =>
+        call<{ added: number; skipped: number; newStops: number; unplaced: number; log: string[]; view: TripView }>(
+            "POST",
+            `${trip(id)}/photos`,
+            o
+        ),
     bases: () => call<{ bases: Base[] }>("GET", "bases").then((r) => r.bases),
     /** Where a place name is: from data/places.json (`saved`), else looked up online. */
     place: (q: string, country?: string) =>
@@ -66,6 +74,19 @@ export const api = {
         call<{ ok: true }>("POST", `upload?${new URLSearchParams({ batch, name: file.name })}`, file),
     import: (o: { batch: string; title: string; from?: string; km: number; force: boolean }) =>
         call<{ id: string; log: string[] }>("POST", "import", o),
+};
+
+/** Uploads files into a batch, a few at a time, calling `progress` with how many are done. */
+export const uploadAll = async (batch: string, files: File[], progress: (done: number) => void) => {
+    let done = 0;
+    const queue = [...files];
+    const worker = async () => {
+        for (let f = queue.shift(); f; f = queue.shift()) {
+            await api.upload(batch, f);
+            progress(++done);
+        }
+    };
+    await Promise.all(Array.from({ length: 4 }, worker));
 };
 
 /** Where the site serves a file, e.g. a photo's thumbnail. */
