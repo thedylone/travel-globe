@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { ApiError, api, type Base } from "./api";
+import { ApiError, api, type Base, uploadAll } from "./api";
 
-const MEDIA = /\.(jpe?g|png|webp|avif|tiff?|gif|mp4|mov|m4v)$/i;
-const HEIC = /\.(heic|heif)$/i;
+export const MEDIA = /\.(jpe?g|png|webp|avif|tiff?|gif|mp4|mov|m4v)$/i;
+export const HEIC = /\.(heic|heif)$/i;
 
 interface Props {
     bases: Base[];
@@ -67,16 +67,8 @@ export const ImportView = ({ bases, onImported }: Props) => {
     const run = async (force: boolean) => {
         try {
             if (!uploaded.current) {
-                let done = 0;
-                setStage({ kind: "uploading", done });
-                const queue = [...media];
-                const worker = async () => {
-                    for (let f = queue.shift(); f; f = queue.shift()) {
-                        await api.upload(batch.current, f);
-                        setStage({ kind: "uploading", done: ++done });
-                    }
-                };
-                await Promise.all(Array.from({ length: 4 }, worker));
+                setStage({ kind: "uploading", done: 0 });
+                await uploadAll(batch.current, media, (done) => setStage({ kind: "uploading", done }));
                 uploaded.current = true;
             }
             setStage({ kind: "importing" });

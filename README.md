@@ -87,6 +87,11 @@ files in your data folder.
   **Repeat** another (burst frames, or the same view twice; the sharpest of them is kept). **Remove all** takes the
   marked ones out of the trip (their files stay on disk), or click a mark to keep that photo. Click any photo to make
   it the stop's cover: it goes first, so the stop's photos open on it.
+- **Add photos**: pick more photos for a trip you already have. Each joins the stop it was taken at (same day,
+  or the day either side, and nearby) and goes into that stop's folder; the rest become new stops, placed by date.
+  Photos the trip already has are skipped.
+- **Delete**: removes the trip file and its photos (the originals in `photos/`, the web versions in `public/photos/`
+  and their entries in `data/photos.json`). Photos another trip also shows are kept.
 - **New trip**: start one by hand, without photos.
 
 The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to
