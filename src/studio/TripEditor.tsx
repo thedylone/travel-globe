@@ -22,6 +22,8 @@ import { StopMap, useMapLayout } from "./StopMap";
 interface Props {
     /** The trip to edit; none = a new trip. */
     id?: string;
+    /** What a new trip starts as, e.g. a trip file from the trip planner. */
+    initial?: Draft;
     bases: Base[];
     onDirty: (dirty: boolean) => void;
     onChanged: (id?: string) => void;
@@ -41,9 +43,9 @@ const DRAG_STOP = "application/x-studio-stop";
 /** Each stop's photos to check for blur and repeats; videos are skipped. */
 const reviewIds = (stops: DraftStop[]) => stops.map((s) => s.media.filter((m) => m.kind === "image").map((m) => m.id));
 
-export const TripEditor = ({ id, bases, onDirty, onChanged }: Props) => {
+export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) => {
     const [view, setView] = useState<TripView>();
-    const [draft, setDraft] = useState<Draft | undefined>(id ? undefined : emptyDraft());
+    const [draft, setDraft] = useState<Draft | undefined>(id ? undefined : (initial ?? emptyDraft()));
     const [dirty, setDirtyState] = useState(false);
     const [status, setStatus] = useState<Status>({ kind: "idle" });
     const [loadError, setLoadError] = useState<string>();

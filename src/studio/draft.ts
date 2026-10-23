@@ -1,4 +1,5 @@
 // The studio's editable copy of a trip file, and the edits it offers.
+import YAML from "yaml";
 import type { Media } from "../types";
 import type { StopInput, TripInput, TripView } from "./api";
 
@@ -55,6 +56,24 @@ export const toDraft = ({ trip, media }: Pick<TripView, "trip" | "media">): Draf
         media: media[i] ?? [],
     })),
 });
+
+/**
+ * A new trip from a trip file picked in the studio, such as one exported from the trip planner.
+ * Not checked here: the editor shows it, and saving checks it. Throws if it isn't a trip at all.
+ */
+export const draftFromFile = (text: string): Draft => {
+    let trip: unknown;
+    try {
+        trip = YAML.parse(text);
+    } catch (e) {
+        throw new Error(`it isn't YAML: ${(e as Error).message}`);
+    }
+    if (!trip || typeof trip !== "object" || !Array.isArray((trip as { stops?: unknown }).stops)) {
+        throw new Error("it isn't a trip file (it has no stops)");
+    }
+    const d = toDraft({ trip: trip as TripView["trip"], media: [] });
+    return d.stops.length ? d : { ...d, stops: [emptyStop()] };
+};
 
 /** The trip to save. Empty fields are left out; the server checks the rest against the schema. */
 export const fromDraft = (d: Draft): TripInput => {

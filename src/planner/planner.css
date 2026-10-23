@@ -1,0 +1,349 @@
+@import "../tokens.css";
+
+/* Phone first: one column, big tap targets, 16px inputs so iOS doesn't zoom in. */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+button,
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    cursor: pointer;
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+.button:active {
+    background: var(--hover-strong);
+}
+
+button:disabled {
+    opacity: 0.35;
+}
+
+button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+}
+
+button.link {
+    border: none;
+    background: none;
+    padding: 8px 4px;
+    color: var(--accent);
+}
+
+button.danger,
+button.link.danger {
+    color: #ff7b72;
+}
+
+input,
+textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    font-size: 16px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 0;
+}
+
+input:focus,
+textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+}
+
+label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+label > input {
+    color: var(--text);
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+.planner {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+        calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+}
+
+.planner-head,
+.plan-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+}
+
+.planner-head h1 {
+    margin: 0;
+    font: 700 26px/1.2 var(--display);
+}
+
+.planner-head a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.planner-banner {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    border: 1px solid rgb(255 191 71 / 0.45);
+    border-radius: var(--radius);
+    background: rgb(255 191 71 / 0.1);
+    font-size: 14px;
+}
+
+.planner-banner p {
+    margin: 0;
+}
+
+.planner-banner button {
+    justify-self: start;
+}
+
+.planner-error {
+    margin: 8px 0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgb(255 123 114 / 0.14);
+    color: #ff7b72;
+    white-space: pre-line;
+    font-size: 14px;
+}
+
+.planner-new {
+    width: 100%;
+    margin: 12px 0;
+}
+
+.planner-intro {
+    font-size: 15px;
+}
+
+.planner-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.planner-list button {
+    display: grid;
+    justify-items: start;
+    justify-content: stretch;
+    gap: 2px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    white-space: normal;
+}
+
+.planner-list .title {
+    font-weight: 600;
+}
+
+.planner-list .muted {
+    font-size: 14px;
+}
+
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: #ffbf47;
+    vertical-align: middle;
+}
+
+.planner-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.planner-empty {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+.plan-title {
+    margin-top: 4px;
+    border-color: transparent;
+    background: none;
+    padding-left: 0;
+    font: 700 24px/1.2 var(--display);
+}
+
+.plan-meta {
+    margin: 0 0 12px;
+    font-size: 14px;
+}
+
+.plan-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.plan-fields label:last-of-type {
+    grid-column: 1 / -1;
+}
+
+.plan-stops {
+    list-style: none;
+    margin: 20px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+}
+
+.plan-stop {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.plan-stop.side {
+    margin-left: 20px;
+    border-style: dashed;
+}
+
+.plan-stop-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.plan-stop .num {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.plan-place {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+}
+
+button.icon {
+    flex: none;
+    width: 40px;
+    padding: 0;
+}
+
+.plan-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* iOS draws date inputs narrower than other inputs, and centred, unless told otherwise. */
+.plan-dates input {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+    min-width: 0;
+}
+
+.plan-stop-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.plan-stop-foot .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+    font-size: 15px;
+    color: var(--text);
+}
+
+.check input {
+    width: 22px;
+    min-height: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.plan-add {
+    width: 100%;
+    margin-top: 12px;
+    border-style: dashed;
+}
+
+.plan-hint {
+    font-size: 14px;
+}
+
+.plan-delete {
+    margin-top: 12px;
+}
