@@ -1,0 +1,591 @@
+@import "../tokens.css";
+
+/* Phone first: one column, big tap targets, 16px inputs so iOS doesn't zoom in. */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+button,
+.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    cursor: pointer;
+    color: var(--text);
+    text-decoration: none;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+.button:active {
+    background: var(--hover-strong);
+}
+
+button:disabled {
+    opacity: 0.35;
+}
+
+button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+}
+
+button.link {
+    border: none;
+    background: none;
+    padding: 8px 4px;
+    color: var(--accent);
+}
+
+button.danger,
+button.link.danger {
+    color: #ff7b72;
+}
+
+input,
+textarea,
+select {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    font-size: 16px;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 0;
+}
+
+input:focus,
+textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+}
+
+label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+label > input {
+    color: var(--text);
+}
+
+.muted {
+    color: var(--text-muted);
+}
+
+body:has(.plan) {
+    overflow: hidden;
+}
+
+.planner {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+        calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+}
+
+.planner-head,
+.plan-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 48px;
+}
+
+.planner-head h1 {
+    margin: 0;
+    font: 700 26px/1.2 var(--display);
+}
+
+.planner-head a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.planner-banner {
+    display: grid;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    border: 1px solid rgb(255 191 71 / 0.45);
+    border-radius: var(--radius);
+    background: rgb(255 191 71 / 0.1);
+    font-size: 14px;
+}
+
+.planner-banner p {
+    margin: 0;
+}
+
+.planner-banner button {
+    justify-self: start;
+}
+
+.planner-error {
+    position: fixed;
+    z-index: 2000;
+    left: 16px;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    max-width: 600px;
+    margin: 0 auto;
+    box-shadow: var(--shadow);
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #3a1518;
+    color: #ffb4ae;
+    white-space: pre-line;
+    font-size: 14px;
+}
+
+.planner-new {
+    width: 100%;
+    margin: 12px 0;
+}
+
+.planner-intro {
+    font-size: 15px;
+}
+
+.planner-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.planner-list button {
+    display: grid;
+    justify-items: start;
+    justify-content: stretch;
+    gap: 2px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    white-space: normal;
+}
+
+.planner-list .title {
+    font-weight: 600;
+}
+
+.planner-list .muted {
+    font-size: 14px;
+}
+
+.dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: #ffbf47;
+    vertical-align: middle;
+}
+
+.planner-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.planner-empty {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+/* --- A plan: the map on top on a phone, beside the days on a wider screen. --- */
+
+:root {
+    --idea: #8b95a7;
+    --map-h: 38vh;
+}
+
+.plan {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.plan-map-wrap {
+    position: relative;
+    flex: none;
+    height: calc(var(--map-h) + env(safe-area-inset-top));
+    border-bottom: 1px solid var(--border);
+}
+
+.plan-map {
+    position: absolute;
+    inset: 0;
+    background: var(--stage);
+}
+
+:root[data-theme="dark"] .plan-map .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+
+.plan-map-all {
+    position: absolute;
+    z-index: 1000;
+    top: calc(10px + env(safe-area-inset-top));
+    right: 10px;
+    min-height: 36px;
+    padding: 4px 12px;
+    box-shadow: var(--shadow);
+}
+
+.plan-side {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 4px calc(16px + env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom))
+        calc(16px + env(safe-area-inset-left));
+}
+
+@media (min-width: 900px) {
+    .plan {
+        flex-direction: row-reverse;
+    }
+    .plan-map-wrap {
+        flex: 1;
+        height: auto;
+        border-bottom: none;
+        border-left: 1px solid var(--border);
+    }
+    .plan-side {
+        flex: none;
+        width: 460px;
+    }
+}
+
+.plan-title {
+    margin-top: 2px;
+    border-color: transparent;
+    background: none;
+    padding-left: 0;
+    font: 700 24px/1.2 var(--display);
+}
+
+.plan-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+/* iOS draws date inputs narrower than other inputs, and centred, unless told otherwise. */
+.plan-dates input {
+    -webkit-appearance: none;
+    appearance: none;
+    text-align: left;
+    min-width: 0;
+}
+
+.plan-details {
+    margin: 10px 0 4px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.plan-details summary {
+    cursor: pointer;
+    padding: 6px 0;
+}
+
+.plan-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 6px 0 4px;
+}
+
+.plan-fields label:last-of-type {
+    grid-column: 1 / -1;
+}
+
+.plan-day {
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.plan-day h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px;
+    font: 700 19px/1.2 var(--display);
+}
+
+.plan-day h2 .muted {
+    font: 400 14px system-ui, sans-serif;
+}
+
+.plan-day-name {
+    min-height: 36px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+}
+
+.swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.plan-day.focused .plan-day-name {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+}
+
+button.plan-day-remove {
+    margin-left: auto;
+    min-height: 36px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.plan-places {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+
+.plan-place {
+    border-radius: var(--radius);
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+}
+
+.plan-place.open {
+    border-color: var(--accent);
+}
+
+.plan-place.side {
+    margin-left: 22px;
+}
+
+.plan-place-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: none;
+    text-align: left;
+    white-space: normal;
+}
+
+.plan-place .num {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    margin-top: 1px;
+    border-radius: 50%;
+    background: var(--idea);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.plan-place-text {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+}
+
+.plan-place-text .name {
+    font-weight: 600;
+}
+
+.plan-place-text .muted {
+    font-size: 13px;
+}
+
+.plan-place-text .note {
+    font-size: 14px;
+    color: var(--text-muted);
+    white-space: pre-line;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.plan-place-body {
+    display: grid;
+    gap: 10px;
+    padding: 0 12px 12px 50px;
+}
+
+.plan-place-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.plan-place-actions select {
+    flex: 1;
+    min-width: 0;
+}
+
+button.icon {
+    flex: none;
+    width: 44px;
+    padding: 0;
+}
+
+.plan-place-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.plan-place-foot .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+    font-size: 15px;
+    color: var(--text);
+}
+
+.check input {
+    width: 22px;
+    min-height: 22px;
+    height: 22px;
+    margin: 0;
+    accent-color: var(--accent);
+}
+
+.plan-add {
+    position: relative;
+    margin-top: 8px;
+}
+
+.plan-add input {
+    border-style: dashed;
+    background: none;
+}
+
+.plan-add input:focus {
+    border-style: solid;
+    background: var(--surface-solid);
+}
+
+.plan-results {
+    list-style: none;
+    margin: 4px 0 0;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    box-shadow: var(--shadow);
+}
+
+.plan-results button {
+    display: grid;
+    justify-items: start;
+    justify-content: stretch;
+    width: 100%;
+    min-height: 0;
+    padding: 8px 10px;
+    border: none;
+    background: none;
+    text-align: left;
+    white-space: normal;
+}
+
+.plan-results .name {
+    font-weight: 600;
+}
+
+.plan-results .muted {
+    font-size: 13px;
+}
+
+.plan-add-day {
+    width: 100%;
+    margin-top: 18px;
+    border-style: dashed;
+}
+
+.plan-hint {
+    font-size: 14px;
+}
+
+.plan-delete {
+    margin-top: 4px;
+}
+
+/* Pins: a number in the day's colour. */
+.plan-pin span {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    color: #fff;
+    font: 700 13px/1 system-ui, sans-serif;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+}
+
+.plan-pin.dim {
+    opacity: 0.35;
+}
+
+.plan-pin.active span {
+    transform: scale(1.25);
+    outline: 3px solid var(--accent);
+}
