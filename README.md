@@ -102,12 +102,17 @@ publish. The studio only listens on your own computer, as it writes files.
 ### Planning a trip on your phone
 
 Every site has a trip planner at `<your site>/planner/` (mine is
-https://thedylone.github.io/travel-history/planner/). It's a page for planning a trip before you go: its stops,
-the dates at each, side trips and notes. It works without signal, and *Share › Add to Home Screen* (Safari) or
-*Install app* (Chrome) puts it on your home screen like an app.
+https://thedylone.github.io/travel-history/planner/). Set the trip's dates, then add
+places to each day by searching for them (results come as you type, from OpenStreetMap through
+[Photon](https://photon.komoot.io)). A map above the days (beside them on a wider screen) shows every place,
+numbered within its day, with a colour and a route per day; tap a day's name to show just that day. Each place
+can have notes, a label for the globe, or be a side trip, and **Places to visit** holds ideas not on a day yet.
+It works without signal (the search and map tiles need it; a place typed offline is added without a location),
+and *Share › Add to Home Screen* (Safari) or *Install app* (Chrome) puts it on your home screen like an app.
 
 Plans are kept in the phone's browser and nowhere else, so **Export** them: it saves the plan as a trip file
-(`2026-12-japan.yaml`) through the share sheet (Save to Files, AirDrop, email it to yourself) or as a download.
+(`2026-12-japan.yaml`), with a stop for each place on each day (a place on days in a row is one stop, as a
+stay) and the coordinates the search found, through the share sheet (Save to Files, AirDrop, email it to yourself) or as a download.
 Safari can clear a site's data when it isn't opened for a few weeks, so the planner marks plans that changed
 since they were last exported, and asks you to export them. **Open a trip file** brings an exported plan back.
 
