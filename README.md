@@ -93,9 +93,31 @@ files in your data folder.
 - **Delete**: removes the trip file and its photos (the originals in `photos/`, the web versions in `public/photos/`
   and their entries in `data/photos.json`). Photos another trip also shows are kept.
 - **New trip**: start one by hand, without photos.
+- **Open a planned trip**: open a trip file exported from the [trip planner](#planning-a-trip-on-your-phone). It
+  shows as a new trip; **Create** saves it and looks up its places, then **Add photos** once you're back.
 
 The globe is served alongside it (the **Globe** link) and reloads with each save. Commit and push as usual to
 publish. The studio only listens on your own computer, as it writes files.
+
+### Planning a trip on your phone
+
+Every site has a trip planner at `<your site>/planner/` (mine is
+https://thedylone.github.io/travel-history/planner/). Set the trip's dates, then add
+places to each day by searching for them (results come as you type, from OpenStreetMap through
+[Photon](https://photon.komoot.io)). A map above the days (beside them on a wider screen) shows every place,
+numbered within its day, with a colour and a route per day; tap a day's name to show just that day. Each place
+can have notes, a label for the globe, or be a side trip, and **Places to visit** holds ideas not on a day yet.
+It works without signal (the search and map tiles need it; a place typed offline is added without a location),
+and *Share › Add to Home Screen* (Safari) or *Install app* (Chrome) puts it on your home screen like an app.
+
+Plans are kept in the phone's browser and nowhere else, so **Export** them: it saves the plan as a trip file
+(`2026-12-japan.yaml`), with a stop for each place on each day (a place on days in a row is one stop, as a
+stay) and the coordinates the search found, through the share sheet (Save to Files, AirDrop, email it to yourself) or as a download.
+Safari can clear a site's data when it isn't opened for a few weeks, so the planner marks plans that changed
+since they were last exported, and asks you to export them. **Open a trip file** brings an exported plan back.
+
+When you're back, open the file in the studio with **Open a planned trip** (or copy it into `data/trips/`), and
+add the photos.
 
 ### From photos on the command line
 
@@ -262,6 +284,7 @@ scripts/              import, photo processing, data loading and validation
 src/lib/              places, clustering, timeline, dates, geo maths (unit tested)
 src/components/       globe, 2D map, trip panel, timeline, photo and share dialogs
 src/studio/           the studio (studio.html); its API is scripts/vite-plugin-studio.ts
+src/planner/          the trip planner (planner/index.html); its offline worker is made by scripts/vite-plugin-planner.ts
 public/               the engine's fonts, textures and icons
 ```
 

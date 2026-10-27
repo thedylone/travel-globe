@@ -3,6 +3,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { ENGINE_ROOT, loadSite, resolveDataDir, STUDIO_ENV } from "./scripts/lib/site.ts";
+import { planner } from "./scripts/vite-plugin-planner.ts";
 import { studio } from "./scripts/vite-plugin-studio.ts";
 import { travelData } from "./scripts/vite-plugin-travel-data.ts";
 
@@ -15,7 +16,12 @@ export default defineConfig({
     root: ENGINE_ROOT,
     base: site.base,
     // The studio's API writes to the data folder, so only `travel-globe studio` turns it on.
-    plugins: [react(), travelData({ dataDir, site }), process.env[STUDIO_ENV] ? studio({ dataDir }) : []],
+    plugins: [
+        react(),
+        travelData({ dataDir, site }),
+        planner({ dataDir, site }),
+        process.env[STUDIO_ENV] ? studio({ dataDir }) : [],
+    ],
     define: {
         // Shown on the share image, e.g. "thedylone.github.io/travel-history".
         __SITE_URL__: JSON.stringify(site.shortUrl),
@@ -26,6 +32,10 @@ export default defineConfig({
         outDir: path.resolve("dist"),
         emptyOutDir: true,
         chunkSizeWarningLimit: 2500,
+        // The globe, and the trip planner at <site>/planner/ (the studio is only served by `travel-globe studio`).
+        rollupOptions: {
+            input: { globe: path.join(ENGINE_ROOT, "index.html"), planner: path.join(ENGINE_ROOT, "planner/index.html") },
+        },
     },
     test: { include: ["src/**/*.test.ts", "scripts/**/*.test.ts"] },
 });

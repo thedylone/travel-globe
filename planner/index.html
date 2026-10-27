@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#040e20" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Planner" />
+    <link rel="icon" href="%BASE_URL%favicon/favicon.ico" />
+    <link rel="apple-touch-icon" href="%BASE_URL%favicon/apple-touch-icon.png" />
+    <link rel="manifest" href="%BASE_URL%planner/manifest.json" />
+    <meta name="robots" content="noindex" />
+    <title>Trip planner · %SITE_TITLE%</title>
+    <script>
+      // Same saved theme as the globe (src/lib/theme.ts).
+      try {
+        var t = localStorage.getItem("travel-history:theme") || "dark";
+        var dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      } catch (e) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/planner/main.tsx"></script>
+  </body>
+</html>
