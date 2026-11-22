@@ -1,4 +1,6 @@
 node_modules/
 dist/
-# original, full-size photos: large, and they contain GPS data (see the engine's README, "Photos")
+# Not committed, so every build installs the engine's latest version (see the engine's README, "Engine updates").
+package-lock.json
+# Original, full-size photos: large, and they contain GPS data (see the engine's README, "Photos").
 photos/

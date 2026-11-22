@@ -4,8 +4,9 @@
 title: Travel History
 # Whose travels these are, for link previews: "Sam's travels on an interactive globe".
 name: Sam
-# Where the site will be deployed. Its path ("/travel-history/") is the base path the site is built for,
-# and it's printed on the stats image. Leave it out to serve the site from the root of a domain.
+# Where the site is deployed. Its path ("/my-travels/") is the base path the site is built for,
+# and it's printed on the stats image. Leave it out and the deploy workflow uses the repo's GitHub
+# Pages address (https://<your-github-name>.github.io/<repo-name>, or your custom domain).
 # url: https://<your-github-name>.github.io/<repo-name>
 # Social handle for link previews.
 # twitter: "@sam"
