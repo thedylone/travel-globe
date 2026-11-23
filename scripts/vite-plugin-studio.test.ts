@@ -21,7 +21,7 @@ const scene = (seed: number) => {
     return sharp(data, { raw: { width: w, height: h, channels: 1 } });
 };
 
-describe("studio API: review", () => {
+describe("studio API: review and photo info", () => {
     let dir: string;
     let handle: Connect.NextHandleFunction;
 
@@ -95,6 +95,54 @@ describe("studio API: review", () => {
         await new Promise((r) => setTimeout(r, 20));
         await photo("t/a/2", scene(1).blur(0.6));
         expect((await review([["t/a/1", "t/a/2"]])).json.flags).toEqual({ "t/a/2": { similarTo: "t/a/1" } });
+    });
+
+    /** An original in photos/, with the time and position a phone would write. */
+    const original = async (file: string, time?: string, gps?: [number, number]) => {
+        const out = path.join(dir, "photos", file);
+        fs.mkdirSync(path.dirname(out), { recursive: true });
+        const dms = (x: number) => `${Math.floor(Math.abs(x))}/1 ${Math.round((Math.abs(x) % 1) * 60 * 100)}/100 0/1`;
+        await scene(1)
+            .jpeg()
+            .withExif({
+                IFD0: { Make: "test" },
+                ...(time ? { IFD2: { DateTimeOriginal: time } } : {}),
+                ...(gps
+                    ? { IFD3: { GPSLatitudeRef: gps[0] < 0 ? "S" : "N", GPSLatitude: dms(gps[0]), GPSLongitudeRef: gps[1] < 0 ? "W" : "E", GPSLongitude: dms(gps[1]) } }
+                    : {}),
+            })
+            .toFile(out);
+    };
+
+    it("reads when and where each photo was taken from its original", async () => {
+        await original("t/krakow/01-IMG_1.jpg", "2024:03:07 10:12:00", [50.06, 19.94]);
+        await original("t/krakow/02-IMG_2.JPG", "2024:03:07 18:30:05");
+        await original("t/krakow/03-IMG_3.jpg");
+        const { status, json } = await call("POST", "/__studio/photo-info", {
+            ids: ["t/krakow/01-IMG_1", "t/krakow/02-IMG_2", "t/krakow/03-IMG_3", "t/krakow/gone", "t/elsewhere/1"],
+        });
+        expect(status).toBe(200);
+        expect(json.info).toEqual({
+            "t/krakow/01-IMG_1": { time: "2024-03-07 10:12:00", at: { lat: 50.06, lng: 19.94 } },
+            "t/krakow/02-IMG_2": { time: "2024-03-07 18:30:05" },
+            "t/krakow/03-IMG_3": {},
+        });
+    });
+
+    it("reads a replaced original again", async () => {
+        await original("t/a/1.jpg", "2024:03:07 10:00:00");
+        const info = async () => (await call("POST", "/__studio/photo-info", { ids: ["t/a/1"] })).json.info;
+        expect(await info()).toEqual({ "t/a/1": { time: "2024-03-07 10:00:00" } });
+        await new Promise((r) => setTimeout(r, 20));
+        await original("t/a/1.jpg", "2024:03:09 08:00:00");
+        expect(await info()).toEqual({ "t/a/1": { time: "2024-03-09 08:00:00" } });
+    });
+
+    it("refuses ids that aren't a list of photo ids", async () => {
+        for (const bad of [undefined, "t/a/1", [1], ["../../etc/passwd"]]) {
+            const { status } = await call("POST", "/__studio/photo-info", { ids: bad });
+            expect(status).toBe(400);
+        }
     });
 
     it("refuses stops that aren't lists of ids", async () => {

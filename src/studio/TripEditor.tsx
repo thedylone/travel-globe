@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LatLng } from "../lib/geo";
+import { groupPhotos, type Moment, momentIds, type PhotoWhen } from "../lib/moments";
 import { ApiError, api, type Base, type PhotoFlag, siteUrl, type TripView, uploadAll } from "./api";
 import {
     type Draft,
@@ -42,6 +43,17 @@ type Status =
 const DRAG_PHOTO = "application/x-studio-photo";
 const DRAG_STOP = "application/x-studio-stop";
 
+type PhotoInfo = Record<string, Omit<PhotoWhen, "id">>;
+
+const GROUPED = "studio.groupPhotos";
+const storedGrouped = () => {
+    try {
+        return localStorage.getItem(GROUPED) !== "off";
+    } catch {
+        return true;
+    }
+};
+
 /** Each stop's photos to check for blur and repeats; videos are skipped. */
 const reviewIds = (stops: DraftStop[]) => stops.map((s) => s.media.filter((m) => m.kind === "image").map((m) => m.id));
 
@@ -65,7 +77,11 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
     const autoPick = async (stops: DraftStop[], perStop: number) => {
         setPickState("picking");
         try {
-            setPicking(toPicking(stops, await api.pick(reviewIds(stops), perStop)));
+            // Moments from when and where each photo was taken; a stop with no times is told apart by look.
+            const moments = reviewIds(stops).map((ids) =>
+                ids.some((i) => info[i]?.time) ? momentIds(groupPhotos(ids.map((i) => ({ id: i, ...info[i] })))) : null
+            );
+            setPicking(toPicking(stops, await api.pick(reviewIds(stops), perStop, moments)));
             setPickState("idle");
         } catch (e) {
             setPickState({ error: (e as Error).message });
@@ -78,6 +94,23 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
             .finally(() => setChecking(false));
     };
 
+    /** When and where each photo was taken, for grouping them; added to as photos come in. */
+    const [info, setInfo] = useState<PhotoInfo>({});
+    const [grouped, setGroupedState] = useState(storedGrouped);
+    const setGrouped = (on: boolean) => {
+        setGroupedState(on);
+        try {
+            localStorage.setItem(GROUPED, on ? "on" : "off");
+        } catch {
+            // Remembered for this visit only.
+        }
+    };
+    const loadInfo = (stops: DraftStop[]) =>
+        api.photoInfo(stops.flatMap((s) => s.media.map((m) => m.id))).then(
+            (i) => setInfo((was) => ({ ...was, ...i })),
+            () => {}
+        );
+
     useEffect(() => {
         if (!id) return;
         api.trip(id).then(
@@ -86,6 +119,7 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
                 const d = toDraft(v);
                 setDraft(d);
                 check(d.stops);
+                loadInfo(d.stops);
             },
             (e: Error) => setLoadError(e.message)
         );
@@ -170,6 +204,7 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
             const d = toDraft(r.view);
             setDraft(d);
             check(d.stops);
+            loadInfo(d.stops);
             const parts = [
                 r.added ? `added ${r.added} photo(s)` : "no new photos",
                 r.newStops ? `${r.newStops} new stop(s)` : "",
@@ -199,6 +234,7 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
     const total = draft.stops.reduce((n, s) => n + s.media.length, 0);
     const setSlots = (key: number, slots: Slot[]) =>
         setPicking((p) => p && new Map(p).set(key, { ...(p.get(key) as StopPick), slots }));
+    const timed = draft.stops.some((s) => s.media.some((m) => info[m.id]?.time));
 
     return (
         <div className="editor">
@@ -361,6 +397,12 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
 
             <div className="editor-body">
                 <div>
+                    {timed && (
+                        <label className="check editor-grouping" title="By when and where each photo was taken; the order on the site stays as it is">
+                            <input type="checkbox" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} />
+                            Group photos by day and moment
+                        </label>
+                    )}
                     <ol className="stops">
                         {draft.stops.map((s, i) => (
                             <StopCard
@@ -391,6 +433,7 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
                                 onKeep={keep}
                                 pick={picking?.get(s.key)}
                                 onPick={(slots) => setSlots(s.key, slots)}
+                                info={grouped ? info : undefined}
                             />
                         ))}
                     </ol>
@@ -425,14 +468,72 @@ interface StopProps {
     flags?: Record<string, PhotoFlag>;
     /** Drop a photo's blurry or repeat mark. */
     onKeep: (photo: string) => void;
+    /** When and where photos were taken: given to show them grouped by day and moment. */
+    info?: PhotoInfo;
     /** While auto-picking: this stop's picks, shown instead of its photos. */
     pick?: StopPick;
     onPick: (slots: Slot[]) => void;
 }
 
-const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto, onCover, flags, onKeep, pick, onPick }: StopProps) => {
+const dayLabel = (day: string) =>
+    new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const clock = (time?: string) => time?.slice(11, 16);
+const momentLabel = (m: Moment) => {
+    const [a, b] = [clock(m.start), clock(m.end)];
+    return a ? (a === b ? a : `${a}–${b}`) : "";
+};
+
+const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto, onCover, flags, onKeep, info, pick, onPick }: StopProps) => {
     const [over, setOver] = useState(false);
     const hasAt = stop.lat.trim() !== "" && stop.lng.trim() !== "";
+    const days =
+        info && stop.media.some((m) => info[m.id]?.time)
+            ? groupPhotos(stop.media.map((m) => ({ id: m.id, ...info[m.id] })))
+            : undefined;
+    const byId = new Map(stop.media.map((m, n) => [m.id, { m, n }]));
+    const figure = (id: string) => {
+        const { m, n } = byId.get(id)!;
+        const flag = flags?.[m.id];
+        return (
+            <figure
+                key={m.id}
+                className={`${n === 0 ? "cover" : ""} ${flag ? "flagged" : ""}`}
+                draggable
+                title={`${m.id}${info?.[m.id]?.time ? ` · ${info[m.id].time}` : ""} · ${n === 0 ? "the cover: shown first" : "click to make it the cover"} · drag to another stop`}
+                onClick={() => onCover(m.id)}
+                onDragStart={(e) => {
+                    e.stopPropagation();
+                    e.dataTransfer.setData(DRAG_PHOTO, JSON.stringify({ photo: m.id, from: index }));
+                }}
+            >
+                <img src={siteUrl(m.thumb)} alt={m.id} loading="lazy" />
+                {m.kind === "video" && <span className="video">▶</span>}
+                {n === 0 && stop.media.length > 1 && <span className="badge">Cover</span>}
+                {flag && (
+                    <button
+                        className="mark"
+                        title={`${flag.blurry ? "Looks blurry" : `Looks like ${flag.similarTo}, which is kept`}. Click to keep this one.`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onKeep(m.id);
+                        }}
+                    >
+                        {flag.blurry ? "Blurry" : "Repeat"}
+                    </button>
+                )}
+                <button
+                    className="remove"
+                    title="Remove from this stop"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRemovePhoto(m.id);
+                    }}
+                >
+                    ✕
+                </button>
+            </figure>
+        );
+    };
     return (
         <li
             data-stop={stop.key}
@@ -518,50 +619,32 @@ const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base,
             </label>
             {pick ? (
                 <PickRow stop={stop} pick={pick} onChange={onPick} />
-            ) : (
-                <div className="photos">
-                    {stop.media.map((m, n) => {
-                        const flag = flags?.[m.id];
+            ) : days ? (
+                <div className="photos grouped">
+                    {days.map((d) => {
+                        const n = d.moments.reduce((sum, m) => sum + m.ids.length, 0);
                         return (
-                            <figure
-                                key={m.id}
-                                className={`${n === 0 ? "cover" : ""} ${flag ? "flagged" : ""}`}
-                                draggable
-                                title={`${m.id} · ${n === 0 ? "the cover: shown first" : "click to make it the cover"} · drag to another stop`}
-                                onClick={() => onCover(m.id)}
-                                onDragStart={(e) => {
-                                    e.stopPropagation();
-                                    e.dataTransfer.setData(DRAG_PHOTO, JSON.stringify({ photo: m.id, from: index }));
-                                }}
-                            >
-                                <img src={siteUrl(m.thumb)} alt={m.id} loading="lazy" />
-                                {m.kind === "video" && <span className="video">▶</span>}
-                                {n === 0 && stop.media.length > 1 && <span className="badge">Cover</span>}
-                                {flag && (
-                                    <button
-                                        className="mark"
-                                        title={`${flag.blurry ? "Looks blurry" : `Looks like ${flag.similarTo}, which is kept`}. Click to keep this one.`}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onKeep(m.id);
-                                        }}
-                                    >
-                                        {flag.blurry ? "Blurry" : "Repeat"}
-                                    </button>
+                            <section className="photo-day" key={d.day ?? "untimed"}>
+                                {(days.length > 1 || !d.day) && (
+                                    <h4>
+                                        {d.day ? dayLabel(d.day) : "No time"} <span className="muted">· {n} photo{n === 1 ? "" : "s"}</span>
+                                    </h4>
                                 )}
-                                <button
-                                    className="remove"
-                                    title="Remove from this stop"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onRemovePhoto(m.id);
-                                    }}
-                                >
-                                    ✕
-                                </button>
-                            </figure>
+                                <div className="moments">
+                                    {d.moments.map((m) => (
+                                        <div className="moment" key={m.ids[0]}>
+                                            <span className="moment-time">{momentLabel(m)}</span>
+                                            <div className="moment-photos">{m.ids.map(figure)}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
                         );
                     })}
+                </div>
+            ) : (
+                <div className="photos">
+                    {stop.media.map((m) => figure(m.id))}
                     {!stop.media.length && <p className="muted">No photos. Drag some here from another stop.</p>}
                 </div>
             )}
