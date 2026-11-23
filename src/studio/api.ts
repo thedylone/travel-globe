@@ -2,6 +2,7 @@
 import type { PhotoFlag } from "../../scripts/lib/review.ts";
 import type { StopInput, TripInput } from "../../scripts/lib/schema.ts";
 import type { LatLng } from "../lib/geo";
+import type { PhotoWhen } from "../lib/moments";
 import type { Media } from "../types";
 
 export type { PhotoFlag, StopInput, TripInput };
@@ -77,6 +78,9 @@ export const api = {
         call<{ id: string; log: string[] }>("POST", "import", o),
     /** Blurry and near-duplicate photos, by id, given each stop's photo ids. */
     review: (stops: string[][]) => call<{ flags: Record<string, PhotoFlag> }>("POST", "review", { stops }).then((r) => r.flags),
+    /** When and where photos were taken, by id, from their originals; ones without an original are left out. */
+    photoInfo: (ids: string[]) =>
+        call<{ info: Record<string, Omit<PhotoWhen, "id">> }>("POST", "photo-info", { ids }).then((r) => r.info),
 };
 
 /** Uploads files into a batch, a few at a time, calling `progress` with how many are done. */
