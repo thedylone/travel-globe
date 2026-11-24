@@ -1,55 +1,107 @@
+/* Scrapbook look: warm paper, soft ink outlines, one terracotta accent, rounded type.
+   Fredoka (headings) and Nunito (text) are self-hosted, latin + latin-ext only; other scripts fall back. */
 @font-face {
-    font-family: "Bricolage Grotesque";
-    src: url("/fonts/BricolageGrotesque.ttf") format("truetype");
-    font-weight: 200 800;
+    font-family: "Fredoka";
+    src: url("/fonts/Fredoka-latin.woff2") format("woff2");
+    font-weight: 400 700;
     font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+@font-face {
+    font-family: "Fredoka";
+    src: url("/fonts/Fredoka-latin-ext.woff2") format("woff2");
+    font-weight: 400 700;
+    font-display: swap;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+    font-family: "Nunito";
+    src: url("/fonts/Nunito-latin.woff2") format("woff2");
+    font-weight: 400 800;
+    font-display: swap;
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+    font-family: "Nunito";
+    src: url("/fonts/Nunito-latin-ext.woff2") format("woff2");
+    font-weight: 400 800;
+    font-display: swap;
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Paper (the default). */
 :root {
-    --display: "Bricolage Grotesque", system-ui, sans-serif;
-    --land: #1f2a40;
-    --visited: #6cb6ff;
-    --bg: #040e20;
-    --surface: rgb(18 24 38 / 0.82);
-    --surface-solid: #161c2b;
-    --surface-hover: rgb(255 255 255 / 0.07);
-    --text: #eef1f6;
-    --text-muted: #9aa5b8;
-    --border: rgb(255 255 255 / 0.12);
-    --accent: #6cb6ff;
-    --on-accent: #04101f;
-    --accent-soft: rgb(108 182 255 / 0.14);
-    --hover-strong: rgb(255 255 255 / 0.15);
-    --grid-line: rgb(255 255 255 / 0.06);
-    --tip-bg: rgb(10 14 24 / 0.85);
-    --stage: #0b0f18;
-    --backdrop: rgb(0 0 0 / 0.55);
-    --radius: 12px;
-    --shadow: 0 8px 32px rgb(0 0 0 / 0.45);
-    --panel-width: 300px;
-    color-scheme: dark;
-}
-
-/* Light theme (src/lib/theme.ts sets data-theme). The globe itself stays in dark space. */
-:root[data-theme="light"] {
-    --land: #d6dde8;
-    --visited: #2f7fd6;
-    --bg: #eef2f7;
-    --surface: rgb(255 255 255 / 0.88);
-    --surface-solid: #ffffff;
-    --surface-hover: rgb(15 23 42 / 0.06);
-    --text: #0e1626;
-    --text-muted: #5d6a82;
-    --border: rgb(15 23 42 / 0.12);
-    --accent: #2f7fd6;
+    --display: "Fredoka", "Nunito", system-ui, sans-serif;
+    --body: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --land: #dccfb8;
+    --visited: #d98b6c;
+    --bg: #efe7d9;
+    --surface: rgb(248 243 233 / 0.96);
+    --surface-solid: #f8f3e9;
+    --surface-hover: #efe5d3;
+    --text: #3d3630;
+    --text-muted: #776b5d;
+    --border: #e0d3bd;
+    --accent: #c4674a;
+    /* The accent as small text: darker, so it reads on paper. */
+    --accent-text: #a5513a;
     --on-accent: #ffffff;
-    --accent-soft: rgb(47 127 214 / 0.12);
-    --hover-strong: rgb(15 23 42 / 0.1);
-    --grid-line: rgb(15 23 42 / 0.07);
-    --tip-bg: rgb(255 255 255 / 0.96);
-    --stage: #e6eaf0;
-    --backdrop: rgb(15 23 42 / 0.35);
-    --shadow: 0 8px 32px rgb(15 23 42 / 0.18);
+    --accent-soft: #f1dfd0;
+    --hover-strong: #e9dcc6;
+    --grid-line: #e8dccb;
+    --tip-bg: #f8f3e9;
+    --stage: #efe6d6;
+    --backdrop: rgb(40 32 26 / 0.4);
+    --danger: #b3261e;
+    /* Outlines and the offset "sticker" shadow under cards and buttons. */
+    --ink: #3d3630;
+    --outline: 2px solid var(--ink);
+    --pop: 3px 3px 0 rgb(61 54 48 / 0.85);
+    --pop-big: 5px 5px 0 rgb(61 54 48 / 0.85);
+    --radius: 22px;
+    --radius-sm: 12px;
+    --shadow: var(--pop-big), 0 14px 40px rgb(40 30 20 / 0.2);
+    /* Washi tape and photo prints. */
+    --tape: repeating-linear-gradient(45deg, rgb(168 186 150 / 0.8) 0 8px, rgb(190 205 174 / 0.8) 8px 16px);
+    --tape-2: repeating-linear-gradient(45deg, rgb(214 190 150 / 0.85) 0 8px, rgb(229 210 175 / 0.85) 8px 16px);
+    --print: #fffdf8;
+    --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --space: #06050b;
+    --panel-width: 300px;
     color-scheme: light;
 }
 
+/* Night: the same scrapbook on dark card stock (src/lib/theme.ts sets data-theme). */
+:root[data-theme="dark"] {
+    --land: #3b342e;
+    --visited: #d98b6c;
+    --bg: #1f1b18;
+    --surface: rgb(43 38 34 / 0.96);
+    --surface-solid: #2b2622;
+    --surface-hover: rgb(243 236 224 / 0.07);
+    --text: #f3ece0;
+    --text-muted: #b3a796;
+    --border: rgb(243 236 224 / 0.14);
+    --accent: #e08a6a;
+    --accent-text: #e9997b;
+    --on-accent: #2b2622;
+    --accent-soft: rgb(224 138 106 / 0.16);
+    --hover-strong: rgb(243 236 224 / 0.14);
+    --grid-line: rgb(243 236 224 / 0.07);
+    --tip-bg: #2b2622;
+    --stage: #1a1714;
+    --backdrop: rgb(0 0 0 / 0.55);
+    --danger: #ff8a80;
+    --ink: #0e0c0a;
+    --pop: 3px 3px 0 rgb(0 0 0 / 0.6);
+    --pop-big: 5px 5px 0 rgb(0 0 0 / 0.6);
+    --shadow: var(--pop-big), 0 14px 40px rgb(0 0 0 / 0.45);
+    --tape: repeating-linear-gradient(45deg, rgb(140 160 122 / 0.75) 0 8px, rgb(160 178 144 / 0.75) 8px 16px);
+    --tape-2: repeating-linear-gradient(45deg, rgb(180 155 116 / 0.8) 0 8px, rgb(198 176 140 / 0.8) 8px 16px);
+    --print: #ebe4d7;
+    --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%232b2622' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    color-scheme: dark;
+}

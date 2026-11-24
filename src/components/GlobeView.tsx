@@ -84,8 +84,8 @@ const RENDERER_CONFIG = { logarithmicDepthBuffer: true };
 
 /** Map style colours per theme, painted into the globe's texture. */
 export const MAP_STYLE: Record<"dark" | "light", MapPalette> = {
-    dark: { ocean: "#0b1a33", land: "#253149", visited: "#4c7aad", border: "rgba(160, 180, 215, 0.6)" },
-    light: { ocean: "#c4d3e6", land: "#f4f6fa", visited: "#2f7fd6", border: "rgba(60, 80, 110, 0.45)" },
+    dark: { ocean: "#1c2a31", land: "#3b342e", visited: "#c4785a", border: "rgba(243, 236, 224, 0.35)" },
+    light: { ocean: "#c3d4d2", land: "#f3ece0", visited: "#d98b6c", border: "rgba(61, 54, 48, 0.4)" },
 };
 
 /** Height of the border lines above the surface, in globe radii. */

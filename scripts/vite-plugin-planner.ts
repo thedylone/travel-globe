@@ -23,8 +23,8 @@ export const plannerManifest = (site: Site) =>
             start_url: "./",
             scope: "./",
             display: "standalone",
-            theme_color: "#040e20",
-            background_color: "#040e20",
+            theme_color: "#efe7d9",
+            background_color: "#efe7d9",
         },
         null,
         2

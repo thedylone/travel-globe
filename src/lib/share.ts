@@ -22,8 +22,9 @@ export type ShareTheme = "dark" | "light";
 export const SHARE_FONT = "Bricolage Grotesque";
 
 const PALETTES: Record<ShareTheme, Record<"bg" | "sea" | "land" | "visited" | "text" | "muted" | "dot", string>> = {
-    dark: { bg: "#0b1220", sea: "#111b2f", land: "#1f2a40", visited: "#6cb6ff", text: "#f2f5fa", muted: "#8ea0bf", dot: "#ffffff" },
-    light: { bg: "#f5f7fb", sea: "#e8edf4", land: "#d3dbe7", visited: "#2f7fd6", text: "#0e1626", muted: "#5d6a82", dot: "#0e1626" },
+    // The site's scrapbook colours (src/tokens.css): paper and terracotta, or dark card stock.
+    dark: { bg: "#1f1b18", sea: "#2b2622", land: "#3b342e", visited: "#d98b6c", text: "#f3ece0", muted: "#b3a796", dot: "#f3ece0" },
+    light: { bg: "#f8f3e9", sea: "#efe7d9", land: "#dccfb8", visited: "#c4674a", text: "#3d3630", muted: "#776b5d", dot: "#3d3630" },
 };
 
 export interface ShareInput {
