@@ -17,6 +17,9 @@ interface Props {
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** The line under a trip's name: its dates, and how many stops if more than one. */
+const meta = (t: Trip) => `${formatDateRange(t)}${t.stops.length > 1 ? ` · ${t.stops.length} stops` : ""}`;
+
 const Checkbox = ({ checked, indeterminate, onChange, label }: {
     checked: boolean;
     indeterminate?: boolean;
@@ -105,9 +108,8 @@ export const Panel = (props: Props) => {
                                                 onClick={() => onFocus(t.id)}
                                             >
                                                 <span className="trip__title">{t.title}</span>
-                                                <span className="trip__date">
-                                                    {formatDateRange(t)}
-                                                    {t.stops.length > 1 ? ` · ${t.stops.length} stops` : ""}
+                                                <span className="trip__date" title={meta(t)}>
+                                                    {meta(t)}
                                                 </span>
                                             </button>
                                         </li>
