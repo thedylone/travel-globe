@@ -10,9 +10,9 @@ html,
 body {
     margin: 0;
     min-height: 100%;
-    background: var(--bg);
+    background: var(--bg) radial-gradient(var(--grid-line) 1.3px, transparent 1.4px) 0 0 / 22px 22px;
     color: var(--text);
-    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 500 16px/1.45 var(--body);
     -webkit-font-smoothing: antialiased;
     -webkit-text-size-adjust: 100%;
 }
@@ -32,12 +32,13 @@ button,
     justify-content: center;
     gap: 6px;
     min-height: 44px;
-    padding: 8px 16px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    padding: 8px 18px;
+    border: 2px solid var(--border);
+    border-radius: 999px;
     background: var(--surface-solid);
     cursor: pointer;
     color: var(--text);
+    font-weight: 700;
     text-decoration: none;
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
@@ -52,23 +53,35 @@ button:disabled {
     opacity: 0.35;
 }
 
+/* The main action: a chunky sticker button that presses in. */
 button.primary {
+    border: var(--outline);
     background: var(--accent);
-    border-color: var(--accent);
     color: var(--on-accent);
+    box-shadow: var(--pop);
+    font-family: var(--display);
+    font-size: 17px;
     font-weight: 600;
+    transition: transform 0.12s, box-shadow 0.12s;
+}
+
+button.primary:active:not(:disabled) {
+    background: var(--accent);
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--ink);
 }
 
 button.link {
     border: none;
+    border-radius: 0;
     background: none;
     padding: 8px 4px;
-    color: var(--accent);
+    color: var(--accent-text);
 }
 
 button.danger,
 button.link.danger {
-    color: #ff7b72;
+    color: var(--danger);
 }
 
 input,
@@ -76,9 +89,9 @@ textarea,
 select {
     width: 100%;
     min-height: 44px;
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    padding: 9px 14px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
     background: var(--surface-solid);
     font-size: 16px;
 }
@@ -98,6 +111,7 @@ label {
     display: grid;
     gap: 4px;
     font-size: 13px;
+    font-weight: 700;
     color: var(--text-muted);
 }
 
@@ -131,11 +145,18 @@ body:has(.plan) {
 
 .planner-head h1 {
     margin: 0;
-    font: 700 26px/1.2 var(--display);
+    font: 600 28px/1.2 var(--display);
+}
+
+.planner-head h1::after {
+    content: " ✦";
+    color: #c9a24a;
+    font-size: 0.8em;
 }
 
 .planner-head a {
-    color: var(--accent);
+    color: var(--accent-text);
+    font-weight: 700;
     text-decoration: none;
 }
 
@@ -144,9 +165,9 @@ body:has(.plan) {
     gap: 10px;
     margin: 12px 0;
     padding: 12px 14px;
-    border: 1px solid rgb(255 191 71 / 0.45);
+    border: 2px dashed #c9a24a;
     border-radius: var(--radius);
-    background: rgb(255 191 71 / 0.1);
+    background: rgb(201 162 74 / 0.12);
     font-size: 14px;
 }
 
@@ -168,9 +189,11 @@ body:has(.plan) {
     margin: 0 auto;
     box-shadow: var(--shadow);
     padding: 10px 14px;
-    border-radius: 10px;
-    background: #3a1518;
-    color: #ffb4ae;
+    border: var(--outline);
+    border-radius: var(--radius-sm);
+    background: var(--surface-solid);
+    color: var(--danger);
+    font-weight: 700;
     white-space: pre-line;
     font-size: 14px;
 }
@@ -198,12 +221,17 @@ body:has(.plan) {
     justify-content: stretch;
     gap: 2px;
     width: 100%;
-    padding: 12px 14px;
+    padding: 12px 16px;
+    border: var(--outline);
+    border-radius: var(--radius);
+    box-shadow: var(--pop);
     text-align: left;
     white-space: normal;
 }
 
 .planner-list .title {
+    font-family: var(--display);
+    font-size: 18px;
     font-weight: 600;
 }
 
@@ -217,7 +245,7 @@ body:has(.plan) {
     height: 8px;
     margin-left: 8px;
     border-radius: 50%;
-    background: #ffbf47;
+    background: #c9a24a;
     vertical-align: middle;
 }
 
@@ -237,7 +265,7 @@ body:has(.plan) {
 /* --- A plan: the map on top on a phone, beside the days on a wider screen. --- */
 
 :root {
-    --idea: #8b95a7;
+    --idea: #9a8e7f;
     --map-h: 38vh;
 }
 
@@ -252,7 +280,7 @@ body:has(.plan) {
     position: relative;
     flex: none;
     height: calc(var(--map-h) + env(safe-area-inset-top));
-    border-bottom: 1px solid var(--border);
+    border-bottom: var(--outline);
 }
 
 .plan-map {
@@ -271,8 +299,9 @@ body:has(.plan) {
     top: calc(10px + env(safe-area-inset-top));
     right: 10px;
     min-height: 36px;
-    padding: 4px 12px;
-    box-shadow: var(--shadow);
+    padding: 4px 14px;
+    border: var(--outline);
+    box-shadow: var(--pop);
 }
 
 .plan-side {
@@ -292,7 +321,7 @@ body:has(.plan) {
         flex: 1;
         height: auto;
         border-bottom: none;
-        border-left: 1px solid var(--border);
+        border-left: var(--outline);
     }
     .plan-side {
         flex: none;
@@ -305,7 +334,7 @@ body:has(.plan) {
     border-color: transparent;
     background: none;
     padding-left: 0;
-    font: 700 24px/1.2 var(--display);
+    font: 600 26px/1.2 var(--display);
 }
 
 .plan-dates {
@@ -347,7 +376,7 @@ body:has(.plan) {
 .plan-day {
     margin-top: 18px;
     padding-top: 12px;
-    border-top: 1px solid var(--border);
+    border-top: 2px dashed var(--border);
 }
 
 .plan-day h2 {
@@ -355,11 +384,11 @@ body:has(.plan) {
     align-items: center;
     gap: 10px;
     margin: 0 0 8px;
-    font: 700 19px/1.2 var(--display);
+    font: 600 20px/1.2 var(--display);
 }
 
 .plan-day h2 .muted {
-    font: 400 14px system-ui, sans-serif;
+    font: 600 14px var(--body);
 }
 
 .plan-day-name {
@@ -400,11 +429,13 @@ button.plan-day-remove {
 .plan-place {
     border-radius: var(--radius);
     background: var(--surface-solid);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
+    transition: box-shadow 0.15s, border-color 0.15s;
 }
 
 .plan-place.open {
-    border-color: var(--accent);
+    border-color: var(--ink);
+    box-shadow: var(--pop);
 }
 
 .plan-place.side {
@@ -434,7 +465,8 @@ button.plan-day-remove {
     border-radius: 50%;
     background: var(--idea);
     color: #fff;
-    font-weight: 700;
+    font-family: var(--display);
+    font-weight: 600;
     font-size: 13px;
 }
 
@@ -445,7 +477,7 @@ button.plan-day-remove {
 }
 
 .plan-place-text .name {
-    font-weight: 600;
+    font-weight: 800;
 }
 
 .plan-place-text .muted {
@@ -527,10 +559,10 @@ button.icon {
     list-style: none;
     margin: 4px 0 0;
     padding: 4px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
+    border: var(--outline);
+    border-radius: var(--radius-sm);
     background: var(--surface-solid);
-    box-shadow: var(--shadow);
+    box-shadow: var(--pop);
 }
 
 .plan-results button {
@@ -541,13 +573,14 @@ button.icon {
     min-height: 0;
     padding: 8px 10px;
     border: none;
+    border-radius: 8px;
     background: none;
     text-align: left;
     white-space: normal;
 }
 
 .plan-results .name {
-    font-weight: 600;
+    font-weight: 800;
 }
 
 .plan-results .muted {
@@ -574,11 +607,11 @@ button.icon {
     place-items: center;
     width: 28px;
     height: 28px;
-    border: 2px solid #fff;
+    border: 2px solid #fffdf8;
     border-radius: 50%;
     color: #fff;
-    font: 700 13px/1 system-ui, sans-serif;
-    box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+    font: 600 13px/1 var(--display);
+    box-shadow: 0 0 0 1.5px #2b2622, 2px 2px 0 1px rgb(0 0 0 / 0.3);
 }
 
 .plan-pin.dim {

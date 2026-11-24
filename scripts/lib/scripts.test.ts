@@ -281,8 +281,8 @@ describe("renderShareSvg", () => {
     it("has a light version", () => {
         const dark = renderShareSvg({ ...input, size: "story", theme: "dark" });
         const light = renderShareSvg({ ...input, size: "story", theme: "light" });
-        expect(dark).toContain('fill="#0b1220"');
-        expect(light).toContain('fill="#f5f7fb"');
-        expect(light).not.toContain('fill="#0b1220"');
+        expect(dark).toContain('fill="#1f1b18"');
+        expect(light).toContain('fill="#f8f3e9"');
+        expect(light).not.toContain('fill="#1f1b18"');
     });
 });

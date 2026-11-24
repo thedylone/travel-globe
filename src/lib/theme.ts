@@ -5,7 +5,7 @@ export type Theme = "light" | "dark";
 
 export const THEME_KEY = "travel-history:theme";
 /** What new visitors get. "auto" would follow their device instead. */
-export const DEFAULT_THEME: ThemePref = "dark";
+export const DEFAULT_THEME: ThemePref = "light";
 
 const prefersDark = () => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true;
 
@@ -31,7 +31,7 @@ export const useTheme = (pref: ThemePref): Theme => {
     const theme: Theme = pref === "auto" ? (systemDark ? "dark" : "light") : pref;
     useEffect(() => {
         document.documentElement.dataset.theme = theme;
-        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#040e20" : "#eef2f7");
+        document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#1f1b18" : "#efe7d9");
         try {
             localStorage.setItem(THEME_KEY, pref);
         } catch {
