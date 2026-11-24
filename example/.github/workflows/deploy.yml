@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Rebuilds every day, so engine updates reach the site without a push here.
+  schedule:
+    - cron: "23 4 * * *"
+  # Or rebuild now: Actions > Build and deploy > Run workflow.
   workflow_dispatch:
 
 permissions:
@@ -23,7 +27,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Installs the engine's latest version, as package-lock.json isn't committed.
       - run: npm install
+      # With no `url:` in site.yaml, build for this repo's GitHub Pages address (custom domain included).
+      - id: pages
+        if: github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+      - name: Set the site's URL
+        if: github.event_name != 'pull_request'
+        run: grep -q '^url:' site.yaml || echo "url: ${{ steps.pages.outputs.base_url }}" >> site.yaml
       # Every place must already be in data/places.json (run `npm run check` locally to fill it in).
       - run: npm run check -- --offline
       - run: npm run build
