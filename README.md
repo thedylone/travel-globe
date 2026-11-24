@@ -2,7 +2,7 @@
 
 Trips and places visited, on an interactive 3D globe, built from a folder of small YAML files.
 There's a demo with sample trips at **https://thedylone.github.io/travel-globe**, and mine are at
-**https://thedylone.github.io/travel-history**. To make your own, see [Your own site](#your-own-site).
+**https://travel.thedylone.com**. To make your own, see [Your own site](#your-own-site).
 
 - Nearby places merge into numbered clusters; zoom in (or click one) and they split apart.
 - A place visited on several trips gets one pin with a multi-coloured ring, and its dialog has a tab per visit.
@@ -28,17 +28,50 @@ npm run dev        # http://localhost:5173/, with the sample trips in example/
 
 ## Your own site
 
-The code (this repo, "the engine") and the trips (a "data folder") are separate, so you can keep your trips in
-a repo of your own and get engine updates with a version bump:
+The code (this repo, "the engine") and your trips (a "data repo") are kept apart. Your repo holds only your
+trips, photos and `site.yaml`; it installs the engine when it builds, so engine updates reach your site on
+their own (see [Engine updates](#engine-updates)). Don't fork this repo for your trips: start a data repo.
 
-1. Copy [`example/`](example) into a new repo. It has sample trips, a `site.yaml`, a `package.json` that
-   installs the engine from GitHub, and a workflow that deploys the site to GitHub Pages.
-2. Edit `site.yaml` (your name, and the URL the site will be at), delete the sample trips, and add your own
-   (see [Adding a trip](#adding-a-trip)).
-3. `npm install`, then `npm run dev` to see it.
-4. Push, and set *Settings › Pages › Build and deployment › Source: GitHub Actions*.
+1. Make the data repo, with sample trips to start from:
 
-To pin an engine version, add a tag to the dependency: `"travel-globe": "github:thedylone/travel-globe#v0.4.0"`.
+   ```sh
+   npx github:thedylone/travel-globe init my-travels
+   cd my-travels
+   npm install
+   npm run dev        # http://localhost:5173/
+   ```
+
+2. Create an empty repo on GitHub (it can be private) and push the folder to it:
+
+   ```sh
+   git init -b main && git add . && git commit -m "My travels"
+   git remote add origin https://github.com/<you>/my-travels.git
+   git push -u origin main
+   ```
+
+3. On GitHub, set *Settings › Pages › Build and deployment › Source: GitHub Actions*, then run the workflow
+   once (*Actions › Build and deploy › Run workflow*). Your site is at `https://<you>.github.io/my-travels/`,
+   built for that address without any setup. (Private repos need a paid GitHub plan for Pages.)
+4. Make it yours: edit `site.yaml` (title, your name), delete the sample trips in `data/trips/`, set `home` in
+   `data/bases.yaml`, and add your own trips (see [Adding a trip](#adding-a-trip)). Every push to `main`
+   redeploys.
+
+For a custom domain, add it under *Settings › Pages › Custom domain*. The workflow builds for it from then on;
+set `url:` in `site.yaml` too if you build on your own computer, as `npm run build` only reads `url:`.
+
+### Engine updates
+
+A data repo follows the engine's `main` branch:
+
+- **On GitHub**: `package-lock.json` isn't committed (it's in `.gitignore`), so every build installs the
+  engine's latest version, and the workflow rebuilds every day, so your site picks up engine changes within a
+  day without a push. To get them straight away, *Actions › Build and deploy › Run workflow*. If an update
+  ever breaks the build, the deploy is skipped and the site stays as it was. (GitHub pauses daily runs in a
+  repo with no pushes for 60 days; any push or *Enable workflow* turns them back on.)
+- **On your computer**: `npm run update-engine` installs the latest engine for `dev` and the studio.
+
+To stay on a version instead, add a tag to the dependency, `"travel-globe": "github:thedylone/travel-globe#v0.4.0"`,
+and change the tag when you want to move on (`update-engine` would move you back to `main`).
 
 ## Data folder
 
@@ -57,11 +90,11 @@ public/               served with the site: public/photos/ holds the web version
 # site.yaml
 title: Travel History                         # top of the trip list, and the browser tab
 name: thedylone                               # link previews: "thedylone's travels on an interactive globe"
-url: https://thedylone.github.io/travel-history   # its path is the base path the site is built for
+url: https://travel.thedylone.com              # its path is the base path the site is built for
 twitter: "@thedylone"
 ```
 
-Every command works on one data folder: `--data <folder>` if given, else `$TRAVEL_HISTORY_DATA`, else the current
+Every command works on one data folder: `--data <folder>` if given, else `$TRAVEL_GLOBE_DATA`, else the current
 folder if it has a `site.yaml`, else the engine's `example/`. In a data repo that's the repo itself; in this repo
 it's `example/`, and `npm run dev -- --data ../my-travels` shows another folder.
 
@@ -108,7 +141,7 @@ publish. The studio only listens on your own computer, as it writes files.
 ### Planning a trip on your phone
 
 Every site has a trip planner at `<your site>/planner/` (mine is
-https://thedylone.github.io/travel-history/planner/). Set the trip's dates, then add
+https://travel.thedylone.com/planner/). Set the trip's dates, then add
 places to each day by searching for them (results come as you type, from OpenStreetMap through
 [Photon](https://photon.komoot.io)). A map above the days (beside them on a wider screen) shows every place,
 numbered within its day, with a colour and a route per day; tap a day's name to show just that day. Each place
@@ -214,6 +247,8 @@ name before the engine was renamed, so data repos set up with that name keep wor
 | `npm run build` | production build into `dist/` (or `--out <folder>`), including the stats images |
 | `npm run preview` | serve the finished build |
 | `npm run stats-image -- <folder>` | render just the stats images |
+| `npm run update-engine` | in a data repo: install the engine's latest version |
+| `npx github:thedylone/travel-globe init <folder>` | start a data repo (see [Your own site](#your-own-site)) |
 
 In this repo only: `npm test` (unit tests), `npm run typecheck`, and `npm run perf` (below).
 
@@ -239,7 +274,7 @@ on the CPU, so it's far slower than a real GPU. The first run needs a browser: `
 
 Pushing to `main` tests the engine and deploys the demo, built from `example/`, with GitHub Actions
 (`.github/workflows/deploy.yml`); pull requests are built and tested but not deployed. A data repo deploys itself
-with the workflow in `example/.github/`. One-time setup: repo *Settings › Pages › Build and deployment › Source:
+with the workflow in `example/.github/`, on each push and once a day (see [Engine updates](#engine-updates)). One-time setup: repo *Settings › Pages › Build and deployment › Source:
 GitHub Actions*. `npm run deploy` still publishes `dist/` to the `gh-pages` branch by hand if needed.
 
 ## Stats image
@@ -248,16 +283,16 @@ Every build renders the stats card into the site, so these always show the lates
 
 | | |
 | --- | --- |
-| https://thedylone.github.io/travel-history/stats.png | 1080×1350, Instagram post |
-| https://thedylone.github.io/travel-history/stats-story.png | 1080×1920, stories |
-| https://thedylone.github.io/travel-history/stats-wide.png | 1200×630, also the site's link preview |
+| https://travel.thedylone.com/stats.png | 1080×1350, Instagram post |
+| https://travel.thedylone.com/stats-story.png | 1080×1920, stories |
+| https://travel.thedylone.com/stats-wide.png | 1200×630, also the site's link preview |
 
 Each also comes in light: `stats-light.png`, `stats-story-light.png`, `stats-wide-light.png`.
 
 Embed one anywhere that takes an image URL, e.g. in a GitHub profile README:
 
 ```md
-[![My travels](https://thedylone.github.io/travel-history/stats.png)](https://thedylone.github.io/travel-history)
+[![My travels](https://travel.thedylone.com/stats.png)](https://travel.thedylone.com)
 ```
 
 `npm run stats-image -- <folder>` renders them locally. The card is drawn by `src/lib/share.ts`, shared with the

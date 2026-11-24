@@ -10,7 +10,8 @@
     "check": "travel-globe check",
     "photos": "travel-globe photos",
     "import": "travel-globe import",
-    "stats-image": "travel-globe stats-image"
+    "stats-image": "travel-globe stats-image",
+    "update-engine": "npm install travel-globe@github:thedylone/travel-globe"
   },
   "dependencies": {
     "travel-globe": "github:thedylone/travel-globe"
