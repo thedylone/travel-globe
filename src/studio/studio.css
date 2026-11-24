@@ -763,3 +763,106 @@ h2 {
         height: 360px;
     }
 }
+
+/* --- auto-pick --- */
+
+.editor-autopick {
+    background: transparent;
+    border: 1px solid var(--border);
+}
+
+.editor-review select {
+    width: auto;
+    padding: 2px 6px;
+}
+
+.picks {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 10px 0 0 34px;
+}
+
+.picks-none {
+    margin: 10px 0 0 34px;
+    font-size: 12px;
+}
+
+.pick-slot {
+    display: flex;
+    gap: 3px;
+    align-items: flex-start;
+}
+
+.pick-slot button {
+    position: relative;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 6px;
+}
+
+.pick-main img {
+    display: block;
+    height: 96px;
+    width: auto;
+    max-width: 170px;
+    object-fit: cover;
+    border-radius: 6px;
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    background: var(--stage);
+}
+
+.pick-main .tick {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+}
+
+.pick-slot.dropped .pick-main img {
+    outline-color: transparent;
+    opacity: 0.4;
+}
+
+.pick-slot.dropped .pick-main .tick {
+    background: rgb(0 0 0 / 0.55);
+    outline: 1.5px solid #fff;
+}
+
+.pick-alts {
+    display: grid;
+    grid-template-columns: repeat(2, 46px);
+    gap: 3px;
+}
+
+.pick-alts img {
+    display: block;
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 4px;
+    opacity: 0.7;
+    background: var(--stage);
+}
+
+.pick-alts button:hover img,
+.pick-alts button:focus-visible img {
+    opacity: 1;
+}
+
+.picks-count {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 12px;
+}

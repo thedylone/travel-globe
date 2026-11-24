@@ -120,6 +120,12 @@ files in your data folder.
   **Repeat** another (burst frames, or the same view twice; the sharpest of them is kept). **Remove all** takes the
   marked ones out of the trip (their files stay on disk), or click a mark to keep that photo. Click any photo to make
   it the stop's cover: it goes first, so the stop's photos open on it.
+- **Auto-pick**: for a trip with hundreds of photos, picks the best few of each stop for you. It scores each photo
+  on sharpness, exposure, contrast, colour and where its detail sits (plus a boost for ones you starred or edited, if
+  the original has that), leaves out blurry ones and repeats, and takes at most one per moment, so you get different
+  views rather than five of the same. The picks are ticked, with the runners-up of the same moment beside each: click
+  one to swap it in, or a pick to drop it, and choose how many per stop. **Keep these** takes the rest out of the
+  trip (their files stay on disk, and videos stay). It all runs on your computer.
 - **Add photos**: pick more photos for a trip you already have. Each joins the stop it was taken at (same day,
   or the day either side, and nearby) and goes into that stop's folder; the rest become new stops, placed by date.
   Photos the trip already has are skipped.

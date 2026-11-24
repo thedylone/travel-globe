@@ -50,6 +50,7 @@ describe("studio API: review and photo info", () => {
             Promise.resolve(handle(req, res, () => reject(new Error("not handled")))).catch(reject);
         });
     const review = (stops: unknown) => call("POST", "/__studio/review", { stops });
+    const pick = (body: unknown) => call("POST", "/__studio/pick", body);
 
     beforeEach(() => {
         dir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-"));
@@ -150,5 +151,29 @@ describe("studio API: review and photo info", () => {
             expect(status).toBe(400);
             expect(json.error).toMatch(/lists of photo ids/);
         }
+    });
+
+    it("picks the best photo of each moment, skipping blurry ones and videos", async () => {
+        await photo("t/a/1", scene(1));
+        await photo("t/a/2", scene(1).blur(5));
+        await photo("t/a/3", scene(2));
+        await photo("t/a/4", scene(3));
+        await photo("t/a/clip", scene(4), "video");
+        const { status, json } = await pick({
+            stops: [["t/a/1", "t/a/2", "t/a/3", "t/a/4", "t/a/clip"]],
+            per: 2,
+            moments: [[["t/a/1", "t/a/2"], ["t/a/3", "t/a/4"]]],
+        });
+        expect(status).toBe(200);
+        const [stop] = json.stops as { picks: { id: string; runnersUp: string[] }[]; considered: number }[];
+        expect(stop.considered).toBe(4);
+        expect(stop.picks).toHaveLength(2);
+        expect(stop.picks[0]).toEqual({ id: "t/a/1", score: expect.any(Number), runnersUp: [] });
+        expect(["t/a/3", "t/a/4"]).toContain(stop.picks[1].id);
+    });
+
+    it("refuses a pick without lists of ids", async () => {
+        expect((await pick({ stops: "t/a/1" })).status).toBe(400);
+        expect((await pick({ stops: [["t/a/1"]], moments: ["t/a/1"] })).status).toBe(400);
     });
 });

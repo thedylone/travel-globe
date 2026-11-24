@@ -133,6 +133,19 @@ export const removePhotos = (stops: DraftStop[], ids: Set<string>): DraftStop[] 
 export const removable = (stops: DraftStop[], marked: Record<string, unknown>): Set<string> =>
     new Set(stops.flatMap((s) => s.media.slice(1).filter((m) => marked[m.id]).map((m) => m.id)));
 
+/**
+ * Keeps a stop's picks: takes `drop` (the photos not picked) out of each stop. A stop whose cover
+ * is dropped opens on its `covers` entry (its best pick) instead. Videos aren't picked, so stay.
+ */
+export const keepPicks = (stops: DraftStop[], drop: Set<string>, covers: Map<number, string>): DraftStop[] =>
+    stops.map((s) => {
+        if (!s.media.some((m) => drop.has(m.id))) return s;
+        const media = s.media.filter((m) => !drop.has(m.id));
+        const best = media.find((m) => m.id === covers.get(s.key));
+        const lostCover = s.media[0] && drop.has(s.media[0].id);
+        return withMedia(s, lostCover && best ? [best, ...media.filter((m) => m !== best)] : media);
+    });
+
 const ends = (date: string) => {
     const [start, end = start] = date.split("..").map((x) => x.trim());
     return { start, end };

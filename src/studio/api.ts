@@ -1,11 +1,12 @@
 // Talks to the studio's local API (scripts/vite-plugin-studio.ts).
+import type { Pick, StopPicks } from "../../scripts/lib/pick.ts";
 import type { PhotoFlag } from "../../scripts/lib/review.ts";
 import type { StopInput, TripInput } from "../../scripts/lib/schema.ts";
 import type { LatLng } from "../lib/geo";
 import type { PhotoWhen } from "../lib/moments";
 import type { Media } from "../types";
 
-export type { PhotoFlag, StopInput, TripInput };
+export type { PhotoFlag, Pick, StopInput, StopPicks, TripInput };
 
 export interface TripSummary {
     id: string;
@@ -78,6 +79,12 @@ export const api = {
         call<{ id: string; log: string[] }>("POST", "import", o),
     /** Blurry and near-duplicate photos, by id, given each stop's photo ids. */
     review: (stops: string[][]) => call<{ flags: Record<string, PhotoFlag> }>("POST", "review", { stops }).then((r) => r.flags),
+    /**
+     * The best few photos of each stop (`per` each, or 0 to scale with the stop), at most one per
+     * moment. `moments` lists each stop's photos taken together; without them, they're told apart by look.
+     */
+    pick: (stops: string[][], per: number, moments?: (string[][] | null)[]) =>
+        call<{ stops: StopPicks[] }>("POST", "pick", { stops, per, ...(moments ? { moments } : {}) }).then((r) => r.stops),
     /** When and where photos were taken, by id, from their originals; ones without an original are left out. */
     photoInfo: (ids: string[]) =>
         call<{ info: Record<string, Omit<PhotoWhen, "id">> }>("POST", "photo-info", { ids }).then((r) => r.info),

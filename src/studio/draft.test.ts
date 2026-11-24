@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Media } from "../types";
-import { fromDraft, makeCover, mergeIntoPrevious, movePhoto, removable, removePhotos, toDraft } from "./draft";
+import { fromDraft, keepPicks, makeCover, mergeIntoPrevious, movePhoto, removable, removePhotos, toDraft } from "./draft";
 
 const photo = (id: string): Media => ({ id, kind: "image", src: `photos/full/${id}.webp`, thumb: `photos/thumb/${id}.webp`, width: 4, height: 3 });
 
@@ -64,5 +64,14 @@ describe("studio draft", () => {
         const marked = { "krakow/1": { blurry: true }, "krakow/2": { similarTo: "krakow/1" }, "auschwitz/1": { blurry: true } };
         expect([...removable(stops, marked)]).toEqual(["krakow/2"]);
         expect(removable(stops, {}).size).toBe(0);
+    });
+
+    it("keeps the picks, opening a stop on its best pick when its cover goes", () => {
+        const d = toDraft(view);
+        const covers = new Map([[d.stops[0].key, "krakow/2"]]);
+        const stops = keepPicks(d.stops, new Set(["krakow/1"]), covers);
+        expect(stops.map((s) => s.photos)).toEqual([["krakow/2"], ["auschwitz/1"]]);
+        // A stop with nothing dropped stays as written.
+        expect(stops[1]).toBe(d.stops[1]);
     });
 });

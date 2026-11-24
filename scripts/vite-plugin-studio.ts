@@ -14,6 +14,7 @@
  *   POST   /__studio/upload?batch=&name=   one photo for an import (body: the file; batch: any id)
  *   POST   /__studio/import             import an uploaded batch (JSON: batch, title, from, km, force)
  *   POST   /__studio/review             blurry and near-duplicate photos (JSON: stops, each a list of photo ids)
+ *   POST   /__studio/pick               the best few photos per stop (JSON: stops, per, moments?)
  *   POST   /__studio/photo-info         when and where photos were taken, from the originals (JSON: ids)
  */
 import fs from "node:fs";
@@ -28,6 +29,7 @@ import { nominatimSearch, PlaceCache } from "./lib/geocode.ts";
 import { addPhotos, ImportError, importTrip, readPhotoInfo } from "./lib/importer.ts";
 import type { PhotoWhen } from "../src/lib/moments.ts";
 import { loadTravelData, paths, resolvePhotos } from "./lib/load.ts";
+import { autoPer, type Candidate, lookOf, metaOf, originalOf, type PhotoLook, type PhotoMeta, pickStop, type StopPicks } from "./lib/pick.ts";
 import { type PhotoFlag, type PhotoScore, reviewStop, scorePhoto } from "./lib/review.ts";
 import { BasesSchema, formatIssues, PhotoManifestSchema, type TripInput, TripSchema } from "./lib/schema.ts";
 import { deleteTrip } from "./lib/remove.ts";
@@ -104,6 +106,24 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
         return s;
     };
 
+    /** How each photo looks, and its rating from the original; kept like `scores`. */
+    const looks = new Map<string, { mtime: number; look: PhotoLook; meta: PhotoMeta }>();
+    const candidate = async (id: string): Promise<Candidate | undefined> => {
+        const s = await score(id);
+        if (!s) return undefined;
+        const file = path.join(dataDir, "public", "photos", "thumb", `${id}.webp`);
+        const mtime = fs.statSync(file).mtimeMs;
+        let hit = looks.get(id);
+        if (hit?.mtime !== mtime) {
+            const look = await lookOf(file).catch(() => undefined);
+            if (!look) return undefined;
+            const original = originalOf(dataDir, id);
+            hit = { mtime, look, meta: original ? await metaOf(original) : {} };
+            looks.set(id, hit);
+        }
+        return { id, ...s, look: hit.look, meta: hit.meta };
+    };
+    const isIds = (x: unknown): x is string[] => Array.isArray(x) && x.every((y) => typeof y === "string");
     /**
      * When and where each photo was taken, read from its original in photos/ (the web copies
      * have no metadata). Kept while the studio runs; a changed original is read again.
@@ -314,6 +334,30 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
                 Object.assign(flags, reviewStop(scored));
             }
             return send(res, 200, { flags });
+        }
+        if (resource === "pick" && method === "POST") {
+            const body = await readJson(req);
+            const stops: unknown = body?.stops;
+            const moments: unknown = body?.moments;
+            if (!Array.isArray(stops) || !stops.every(isIds)) throw new HttpError(400, "stops should be lists of photo ids");
+            if (moments !== undefined && !(Array.isArray(moments) && moments.every((m) => m === null || (Array.isArray(m) && m.every(isIds))))) {
+                throw new HttpError(400, "moments should be, per stop, lists of photo ids");
+            }
+            const per = Number(body?.per);
+            const photos = manifest();
+            const out: StopPicks[] = [];
+            for (const [i, ids] of (stops as string[][]).entries()) {
+                const scored: Candidate[] = [];
+                for (const id of ids) {
+                    if (photos[id]?.kind !== "image") continue;
+                    const c = await candidate(id);
+                    if (c) scored.push(c);
+                }
+                const flags = reviewStop(scored);
+                const m = (moments as (string[][] | null)[] | undefined)?.[i] ?? undefined;
+                out.push(pickStop(scored, { per: per > 0 ? Math.floor(per) : autoPer(scored.length), moments: m, flags }));
+            }
+            return send(res, 200, { stops: out });
         }
         if (resource === "photo-info" && method === "POST") {
             const ids: unknown = (await readJson(req))?.ids;

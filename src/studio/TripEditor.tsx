@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { LatLng } from "../lib/geo";
-import { groupPhotos, type Moment, type PhotoWhen } from "../lib/moments";
+import { groupPhotos, type Moment, momentIds, type PhotoWhen } from "../lib/moments";
 import { ApiError, api, type Base, type PhotoFlag, siteUrl, type TripView, uploadAll } from "./api";
 import {
     type Draft,
@@ -8,6 +8,7 @@ import {
     emptyDraft,
     emptyStop,
     fromDraft,
+    keepPicks,
     makeCover,
     mergeIntoPrevious,
     movePhoto,
@@ -17,6 +18,7 @@ import {
     removePhotos,
     toDraft,
 } from "./draft";
+import { outcome, PickRow, type Picking, type Slot, type StopPick, toPicking } from "./AutoPick";
 import { HEIC, MEDIA } from "./ImportView";
 import { StopMap, useMapLayout } from "./StopMap";
 
@@ -68,6 +70,23 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
     /** Photos that look blurry or repeat another, from the last check; dropped from here when you keep one. */
     const [flags, setFlags] = useState<Record<string, PhotoFlag>>();
     const [checking, setChecking] = useState(false);
+    /** The auto picker's picks while you look them over; none = not picking. */
+    const [picking, setPicking] = useState<Picking>();
+    const [per, setPer] = useState(0);
+    const [pickState, setPickState] = useState<"idle" | "picking" | { error: string }>("idle");
+    const autoPick = async (stops: DraftStop[], perStop: number) => {
+        setPickState("picking");
+        try {
+            // Moments from when and where each photo was taken; a stop with no times is told apart by look.
+            const moments = reviewIds(stops).map((ids) =>
+                ids.some((i) => info[i]?.time) ? momentIds(groupPhotos(ids.map((i) => ({ id: i, ...info[i] })))) : null
+            );
+            setPicking(toPicking(stops, await api.pick(reviewIds(stops), perStop, moments)));
+            setPickState("idle");
+        } catch (e) {
+            setPickState({ error: (e as Error).message });
+        }
+    };
     const check = (stops: DraftStop[]) => {
         setChecking(true);
         api.review(reviewIds(stops))
@@ -211,6 +230,10 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
             return rest;
         });
     const baseList = bases.map((b) => b.key);
+    const picked = picking && outcome(picking);
+    const total = draft.stops.reduce((n, s) => n + s.media.length, 0);
+    const setSlots = (key: number, slots: Slot[]) =>
+        setPicking((p) => p && new Map(p).set(key, { ...(p.get(key) as StopPick), slots }));
     const timed = draft.stops.some((s) => s.media.some((m) => info[m.id]?.time));
 
     return (
@@ -305,7 +328,55 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
                 </ul>
             )}
 
-            {flags && (
+            {picked ? (
+                <div className="editor-review editor-picks">
+                    <span>
+                        Picked {picked.kept} of {total} photos: the best of each moment, up to{" "}
+                        <select
+                            value={per}
+                            disabled={pickState === "picking"}
+                            onChange={(e) => {
+                                setPer(Number(e.target.value));
+                                autoPick(draft.stops, Number(e.target.value));
+                            }}
+                        >
+                            <option value={0}>a few</option>
+                            {[3, 5, 8, 12, 20].map((n) => (
+                                <option key={n} value={n}>
+                                    {n}
+                                </option>
+                            ))}
+                        </select>{" "}
+                        per stop. Click a runner-up to swap it in, or a pick to drop it.
+                    </span>
+                    <button
+                        className="primary"
+                        disabled={pickState === "picking"}
+                        title="The others leave the trip; their files stay on disk"
+                        onClick={() => {
+                            editStops((st) => keepPicks(st, picked.drop, picked.covers));
+                            setPicking(undefined);
+                        }}
+                    >
+                        Keep these, remove {picked.drop.size}
+                    </button>
+                    <button onClick={() => setPicking(undefined)}>Cancel</button>
+                </div>
+            ) : (
+                <div className="editor-review editor-autopick">
+                    <span>
+                        {total > 0
+                            ? `${total} photos. Auto-pick chooses the best few of each stop, one per moment, for you to look over.`
+                            : "Add photos, then Auto-pick can choose the best few of each stop."}
+                        {typeof pickState === "object" && <span className="studio-error"> Couldn't pick: {pickState.error}</span>}
+                    </span>
+                    <button disabled={!total || pickState === "picking"} onClick={() => autoPick(draft.stops, per)}>
+                        {pickState === "picking" ? "Picking…" : "Auto-pick"}
+                    </button>
+                </div>
+            )}
+
+            {flags && !picking && (
                 <div className="editor-review">
                     {flagged.size ? (
                         <>
@@ -360,6 +431,8 @@ export const TripEditor = ({ id, initial, bases, onDirty, onChanged }: Props) =>
                                 }}
                                 flags={flags}
                                 onKeep={keep}
+                                pick={picking?.get(s.key)}
+                                onPick={(slots) => setSlots(s.key, slots)}
                                 info={grouped ? info : undefined}
                             />
                         ))}
@@ -397,6 +470,9 @@ interface StopProps {
     onKeep: (photo: string) => void;
     /** When and where photos were taken: given to show them grouped by day and moment. */
     info?: PhotoInfo;
+    /** While auto-picking: this stop's picks, shown instead of its photos. */
+    pick?: StopPick;
+    onPick: (slots: Slot[]) => void;
 }
 
 const dayLabel = (day: string) =>
@@ -407,7 +483,7 @@ const momentLabel = (m: Moment) => {
     return a ? (a === b ? a : `${a}–${b}`) : "";
 };
 
-const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto, onCover, flags, onKeep, info }: StopProps) => {
+const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base, onChange, onMove, onDropStop, onMerge, onDelete, onDropPhoto, onRemovePhoto, onCover, flags, onKeep, info, pick, onPick }: StopProps) => {
     const [over, setOver] = useState(false);
     const hasAt = stop.lat.trim() !== "" && stop.lng.trim() !== "";
     const days =
@@ -541,7 +617,9 @@ const StopCard = ({ stop, index, count, active, placing, onFocus, onPlace, base,
                 Note
                 <textarea rows={stop.note ? 2 : 1} value={stop.note} placeholder="Shown with the photos" onChange={(e) => onChange({ note: e.target.value })} />
             </label>
-            {days ? (
+            {pick ? (
+                <PickRow stop={stop} pick={pick} onChange={onPick} />
+            ) : days ? (
                 <div className="photos grouped">
                     {days.map((d) => {
                         const n = d.moments.reduce((sum, m) => sum + m.ids.length, 0);
