@@ -14,6 +14,7 @@
  *   POST   /__studio/upload?batch=&name=   one photo for an import (body: the file; batch: any id)
  *   POST   /__studio/import             import an uploaded batch (JSON: batch, title, from, km, force)
  *   POST   /__studio/review             blurry and near-duplicate photos (JSON: stops, each a list of photo ids)
+ *   POST   /__studio/photo-info         when and where photos were taken, from the originals (JSON: ids)
  */
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -24,7 +25,8 @@ import type { Plugin } from "vite";
 import YAML from "yaml";
 import type { Media } from "../src/types.ts";
 import { nominatimSearch, PlaceCache } from "./lib/geocode.ts";
-import { addPhotos, ImportError, importTrip } from "./lib/importer.ts";
+import { addPhotos, ImportError, importTrip, readPhotoInfo } from "./lib/importer.ts";
+import type { PhotoWhen } from "../src/lib/moments.ts";
 import { loadTravelData, paths, resolvePhotos } from "./lib/load.ts";
 import { type PhotoFlag, type PhotoScore, reviewStop, scorePhoto } from "./lib/review.ts";
 import { BasesSchema, formatIssues, PhotoManifestSchema, type TripInput, TripSchema } from "./lib/schema.ts";
@@ -100,6 +102,38 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
         const s = await scorePhoto(file).catch(() => undefined);
         if (s) scores.set(id, { mtime, score: s });
         return s;
+    };
+
+    /**
+     * When and where each photo was taken, read from its original in photos/ (the web copies
+     * have no metadata). Kept while the studio runs; a changed original is read again.
+     */
+    const infos = new Map<string, { file: string; mtime: number; info: Omit<PhotoWhen, "id"> }>();
+    const photoInfo = async (ids: string[]) => {
+        const listings = new Map<string, string[]>();
+        const originalOf = (id: string) => {
+            const dir = path.join(dataDir, "photos", ...path.posix.dirname(id).split("/"));
+            if (!listings.has(dir)) listings.set(dir, fs.existsSync(dir) ? fs.readdirSync(dir) : []);
+            const name = listings.get(dir)!.find((f) => f.replace(/\.[^.]+$/, "") === path.posix.basename(id));
+            return name ? path.join(dir, name) : undefined;
+        };
+        const out: Record<string, Omit<PhotoWhen, "id">> = {};
+        const unread: { id: string; file: string; mtime: number }[] = [];
+        for (const id of new Set(ids)) {
+            const file = originalOf(id);
+            if (!file) continue;
+            const mtime = fs.statSync(file).mtimeMs;
+            const hit = infos.get(id);
+            if (hit?.file === file && hit.mtime === mtime) out[id] = hit.info;
+            else unread.push({ id, file, mtime });
+        }
+        const read = await readPhotoInfo(unread.map((u) => u.file));
+        unread.forEach(({ id, file, mtime }, i) => {
+            const { file: _, ...info } = read[i];
+            infos.set(id, { file, mtime, info });
+            out[id] = info;
+        });
+        return out;
     };
 
     /** Problems for each trip file, keyed by id. Looks up new places when `online`. */
@@ -280,6 +314,13 @@ export const studio = ({ dataDir }: { dataDir: string }): Plugin => {
                 Object.assign(flags, reviewStop(scored));
             }
             return send(res, 200, { flags });
+        }
+        if (resource === "photo-info" && method === "POST") {
+            const ids: unknown = (await readJson(req))?.ids;
+            if (!Array.isArray(ids) || !ids.every((x) => typeof x === "string" && !x.split("/").includes(".."))) {
+                throw new HttpError(400, "ids should be a list of photo ids");
+            }
+            return send(res, 200, { info: await photoInfo(ids as string[]) });
         }
         throw new HttpError(404, `no such route: ${method} ${PREFIX}${route}`);
     };

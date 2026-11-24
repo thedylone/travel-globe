@@ -485,6 +485,67 @@ h2 {
     flex: 1 1 280px;
 }
 
+/* --- photos grouped by day and moment --- */
+
+.editor-grouping {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: fit-content;
+    color: var(--text);
+    gap: 6px;
+    margin: 0 0 10px;
+    font-size: 13px;
+}
+
+.editor-grouping input {
+    width: auto;
+}
+
+.photos.grouped {
+    display: block;
+}
+
+.photo-day + .photo-day {
+    margin-top: 10px;
+}
+
+.photo-day h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.moments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.moment {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 6px 6px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.moment-time {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.moment-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
 /* --- import --- */
 
 .import {
