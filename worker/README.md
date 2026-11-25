@@ -2,8 +2,8 @@
 
 A small [Cloudflare Worker](https://developers.cloudflare.com/workers/) that lets several phones share a plan
 in the trip planner and change it together. It runs on Cloudflare's free plan. There are no accounts:
-**Share** in the planner makes a random secret that goes in the share link, and the Worker keeps only a hash of
-it. Anyone with the link can see and change that plan, and nobody else can.
+**Share** in the planner makes a random 16-character code that is the share link, and the Worker keeps only a
+hash of it. Anyone with the link can see and change that plan, and nobody else can.
 
 Each shared plan lives in its own [Durable Object](https://developers.cloudflare.com/durable-objects/), which
 handles one request at a time. A phone's save says which version it was based on; if someone else saved first,
@@ -50,24 +50,33 @@ You need a free Cloudflare account and Node.js. Run these from the `worker/` fol
 ## API
 
 ```
-GET /plans/<id>                       -> { version, plan }
-PUT /plans/<id>  { version, plan }    -> { version, plan }; 409 with the newest if `version` isn't it
-GET /p/<id>.<secret>                  -> the share link's page (below)
+GET /shared                    -> { version, plan, picture? }
+PUT /shared  { version, plan } -> { version, plan, picture? }; 409 with the newest if `version` isn't it
+PUT /shared/picture  (JPEG/PNG) -> { picture }: the trip's link-preview picture
+GET /p/<code>                  -> the share link's page (below)
+GET /p/<code>/picture          -> the trip's picture
 ```
 
-Both take `Authorization: Bearer <secret>` (64 hex characters). A `PUT` with version 0 makes the plan, and that
-secret is the plan's from then on.
+The API takes `Authorization: Bearer <code>`. A `PUT` with version 0 makes the plan. Plans shared before codes
+use `/plans/<id>` and `/plans/<id>/picture` with their 64-character secret instead, and their links are
+`/p/<id>.<secret>`; they work the same way.
 
 ## Share links and link previews
 
-A share link is `https://planner-sync.<your-subdomain>.workers.dev/p/<id>.<secret>`. Chat apps don't run
-scripts, so to show a preview they read the page's tags: the Worker answers with the plan's name, its dates and
-first few places, and the planner's picture (`planner/preview.png`, made with the site), then sends the browser
-on to `PLANNER_URL#join=<id>.<secret>`. The name only shows for the right secret, and the page is never cached
-or indexed. Whoever gets the link (and the chat app making its preview) can see the plan anyway.
+A share link is `https://planner-sync.<your-subdomain>.workers.dev/p/<code>`. Chat apps don't run scripts, so
+to show a preview they read the page's tags: the Worker answers with the plan's name, dates and first few places,
+and its picture, then sends the browser on to `PLANNER_URL#join=<code>`. The picture (title, dates and the route
+through the trip's places) is drawn by a phone in the planner when the trip is shared and whenever what it shows
+changes, and kept with the plan; until there is one, the planner's own (`planner/preview.png`, made with the
+site) is used. The plan only shows for the right code, and the page is never cached or indexed. Whoever gets the
+link (and the chat app making its preview) can see the plan anyway.
 
-`PLANNER_URL` in `wrangler.toml` is where the planner is. Links from before this (`/planner/#join=…`) still work,
+`PLANNER_URL` in `wrangler.toml` is where the planner is. Links from before previews (`/planner/#join=…`) still work,
 just without the trip's own preview.
+
+For shorter links, give the Worker a domain of your own (if its DNS is on Cloudflare): Workers & Pages >
+planner-sync > Settings > Domains & Routes > Add > Custom domain, e.g. `plan.example.com`. Then change `sync:` in
+`site.yaml` to `https://plan.example.com`.
 
 ## Limits
 

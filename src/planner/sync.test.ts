@@ -91,13 +91,14 @@ describe("syncing shared plans", () => {
 
         // The link opens the server's preview page, which goes on to the planner's "#join=…".
         const url = shareLink(mine, "");
-        expect(url).toBe(`/p/${mine.id}.${mine.shared!.secret}`);
+        expect(mine.shared!.secret).toMatch(/^[A-Za-z0-9_-]{16}$/);
+        expect(url).toBe(`/p/${mine.shared!.secret}`);
         const page = await (await fetch(url, { headers: {} })).text();
         const target = JSON.parse(/location\.replace\(([^)]+)\)/.exec(page)![1]) as string;
         expect(page).toContain('content="japan"');
         const link = readJoin(new URL(target).hash);
-        expect(link).toEqual({ id: mine.id, secret: mine.shared!.secret });
-        const hers = await join(link!.id, link!.secret);
+        expect(link).toEqual({ secret: mine.shared!.secret });
+        const hers = await join(link!, []);
         expect(content(hers)).toEqual(content(mine));
         expect(hers.exported).toBeUndefined();
 
@@ -119,7 +120,7 @@ describe("syncing shared plans", () => {
 
     it("keeps an edit made while a sync was going", async () => {
         const sent = await share(phone());
-        const theirs = await sync({ ...(await join(sent.id, sent.shared!.secret)), title: "japan 2026" });
+        const theirs = await sync({ ...(await join({ secret: sent.shared!.secret }, [])), title: "japan 2026" });
         const result = await sync(sent);
         expect(result.title).toBe("japan 2026");
         const now = { ...sent, ...editPlace(content(sent), "tokyo", { note: "typed meanwhile" }) };
@@ -132,7 +133,25 @@ describe("syncing shared plans", () => {
 
     it("says when a link is wrong", async () => {
         const p = await share(phone());
-        await expect(join(p.id, "b".repeat(64))).rejects.toThrow("doesn't open");
+        await expect(join({ secret: "b".repeat(16) }, [])).rejects.toThrow("isn't on the server");
         expect(readJoin("#join=nonsense")).toBeUndefined();
+        // Links from before codes still read.
+        const old = `${p.id}.${"c".repeat(64)}`;
+        expect(readJoin(`#join=${old}`)).toEqual({ id: p.id, secret: "c".repeat(64) });
+    });
+
+    it("still syncs plans shared before codes", async () => {
+        const secret = "d".repeat(64);
+        const res = await fetch(`/plans/${base().id}`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ version: 0, plan: base() }),
+        });
+        expect(res.status).toBe(200);
+        const p = await join({ id: base().id, secret }, []);
+        expect(shareLink(p, "")).toBe(`/p/${p.id}.${secret}`);
+        const edited = await sync({ ...p, title: "japan!" });
+        expect(edited.shared?.version).toBe(2);
+        await expect(join({ id: base().id, secret: "e".repeat(64) }, [])).rejects.toThrow("doesn't open");
     });
 });

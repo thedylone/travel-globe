@@ -54,6 +54,8 @@ export interface Shared {
     base: Omit<Plan, "exported" | "shared">;
     /** When it last synced, in milliseconds. */
     synced: number;
+    /** What the trip's link-preview picture last sent from this phone showed (see picture.ts). */
+    picture?: string;
 }
 
 const newKey = () => crypto.randomUUID();
