@@ -92,7 +92,7 @@ describe("syncing shared plans", () => {
         // The link opens the server's preview page, which goes on to the planner's "#join=…".
         const url = shareLink(mine, "");
         expect(mine.shared!.secret).toMatch(/^[A-Za-z0-9_-]{16}$/);
-        expect(url).toBe(`/p/${mine.shared!.secret}`);
+        expect(url).toBe(`/${mine.shared!.secret}`);
         const page = await (await fetch(url, { headers: {} })).text();
         const target = JSON.parse(/location\.replace\(([^)]+)\)/.exec(page)![1]) as string;
         expect(page).toContain('content="japan"');

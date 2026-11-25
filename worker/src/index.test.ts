@@ -73,6 +73,7 @@ describe("planner sync worker", () => {
         expect(wrong).not.toContain("japan");
         expect(wrong).toContain(`#join=${ID}.${"b".repeat(64)}`);
         expect((await server(new Request(`https://sync.example.com/p/${ID}.short`))).status).toBe(404);
+        expect((await server(new Request("https://sync.example.com/"))).headers.get("Location")).toBe("https://travel.example.com/planner/");
     });
 
     it("describes plans in a line", () => {
@@ -110,7 +111,7 @@ describe("planner sync worker", () => {
         expect((await api("GET", "", undefined, "", SECRET)).status).toBe(401);
 
         // No picture yet: the planner's.
-        const page = () => server(new Request(`https://sync.example.com/p/${CODE}`)).then((r) => r.text());
+        const page = () => server(new Request(`https://sync.example.com/${CODE}`)).then((r) => r.text());
         expect(await page()).toContain('content="https://travel.example.com/planner/preview.png"');
         expect(await page()).toContain(`location.replace("https://travel.example.com/planner/#join=${CODE}")`);
 
@@ -123,8 +124,10 @@ describe("planner sync worker", () => {
         // Saving the plan keeps its picture.
         expect(await (await api("PUT", "", JSON.stringify({ version: 1, plan: plan("kyoto") }))).json()).toMatchObject({ version: 2, picture: 1 });
 
-        expect(await page()).toContain(`content="https://sync.example.com/p/${CODE}/picture?v=1"`);
-        const pic = await server(new Request(`https://sync.example.com/p/${CODE}/picture?v=1`));
+        expect(await page()).toContain(`content="https://sync.example.com/${CODE}/picture?v=1"`);
+        // Links from before codes were the whole link still open.
+        expect(await (await server(new Request(`https://sync.example.com/p/${CODE}`))).text()).toContain(`/p/${CODE}/picture?v=1`);
+        const pic = await server(new Request(`https://sync.example.com/${CODE}/picture?v=1`));
         expect(pic.headers.get("Content-Type")).toBe("image/jpeg");
         expect(new Uint8Array(await pic.arrayBuffer())).toEqual(jpeg);
         expect((await server(new Request(`https://sync.example.com/p/Zk3f9QmT2aLp7RvB/picture`))).status).toBe(404);

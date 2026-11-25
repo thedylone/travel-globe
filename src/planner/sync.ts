@@ -17,15 +17,13 @@ export const newCode = () =>
 /** Plans shared before codes have a 64-character secret, used with their id. */
 const isOldSecret = (secret: string) => /^[0-9a-f]{64}$/.test(secret);
 
-/** What goes after "/p/" and "#join=": the code, or "<id>.<secret>" for plans shared before codes. */
-const linkKey = (id: string, secret: string) => (isOldSecret(secret) ? `${id}.${secret}` : secret);
-
 /**
  * The link that opens a shared plan on another phone. It goes through the sync server, which
  * gives chat apps a preview with the plan's name, dates and picture, then on to the planner's
  * "#join=…".
  */
-export const shareLink = (p: Plan, server = SYNC_URL) => (p.shared ? `${server}/p/${linkKey(p.id, p.shared.secret)}` : "");
+export const shareLink = (p: Plan, server = SYNC_URL) =>
+    !p.shared ? "" : isOldSecret(p.shared.secret) ? `${server}/p/${p.id}.${p.shared.secret}` : `${server}/${p.shared.secret}`;
 
 /** The code (or, from older links, the plan and secret) in a share link's "#join=…", if it has one. */
 export const readJoin = (hash: string): { id?: string; secret: string } | undefined => {

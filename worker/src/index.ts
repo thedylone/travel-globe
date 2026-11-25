@@ -12,9 +12,9 @@
 //                                                  (version 0 makes the plan, the first time)
 // PUT /shared/picture         a JPEG or PNG     -> { picture }: the trip's link-preview picture
 // GET|PUT /plans/<id>[/picture]  Bearer <secret>: the same, for plans shared before codes
-// GET /p/<code>  (or /p/<id>.<secret>)          -> the share link: a page with link-preview tags
+// GET /<code>  (or /p/<code>, /p/<id>.<secret>) -> the share link: a page with link-preview tags
 //                                                  that goes on to the planner (see preview.ts)
-// GET /p/<code>/picture                         -> the trip's picture, for that page
+// GET /<code>/picture                           -> the trip's picture, for that page
 import { previewPage } from "./preview";
 
 /** The bits of the Durable Object storage this uses. */
@@ -55,7 +55,8 @@ const SECRET = "[0-9a-f]{64}";
 const TOKEN = new RegExp(`^Bearer (${CODE}|${SECRET})$`);
 const OLD_API = new RegExp(`^/plans/(${UUID})(/picture)?$`);
 const API = /^\/shared(\/picture)?$/;
-const LINK = new RegExp(`^/p/(${CODE}|(${UUID})\\.(${SECRET}))(/picture)?$`);
+/** A share link: /<code>, or (from before codes were the whole link) /p/<code> or /p/<id>.<secret>. */
+const LINK = new RegExp(`^/(?:p/)?(${CODE}|(${UUID})\\.(${SECRET}))(/picture)?$`);
 
 interface Room {
     /** SHA-256 of the code (or secret), in hex. */
@@ -150,7 +151,7 @@ const sharePage = async (request: Request, env: Env, link: string, token: string
     const saved = res.ok ? ((await res.json()) as { plan?: object; picture?: number }) : undefined;
     const planner = plannerUrl(env);
     const here = new URL(request.url);
-    const image = saved?.picture ? `${here.origin}/p/${link}/picture?v=${saved.picture}` : `${planner}preview.png`;
+    const image = saved?.picture ? `${here.origin}${here.pathname}/picture?v=${saved.picture}` : `${planner}preview.png`;
     const html = previewPage({ plan: saved?.plan, url: `${here.origin}${here.pathname}`, planner: `${planner}#join=${link}`, image });
     return new Response(head ? null : html, {
         headers: {
@@ -169,6 +170,9 @@ export const handle = async (request: Request, env: Env): Promise<Response> => {
         const [, whole, id, secret, picture] = link;
         return sharePage(request, env, whole, secret ?? whole, id, !!picture);
     }
+
+    // The bare address (someone trimming a link): the planner.
+    if (path === "/" && request.method === "GET") return Response.redirect(plannerUrl(env), 302);
 
     const origin = allowedOrigin(request, env);
     if (origin === false) return json({ error: "origin not allowed" }, 403);

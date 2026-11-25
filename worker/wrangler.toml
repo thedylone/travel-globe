@@ -3,6 +3,12 @@ name = "planner-sync"
 main = "src/index.ts"
 compatibility_date = "2026-11-01"
 
+# Its own address, for short share links (plan.thedylone.com/<code>). The deploy makes the domain and
+# its DNS record, as long as the domain's DNS is on Cloudflare. The workers.dev address stays on, so
+# links made with it keep working.
+routes = [{ pattern = "plan.thedylone.com", custom_domain = true }]
+workers_dev = true
+
 [vars]
 # Sites allowed to call it from a browser, comma-separated, with no trailing slash.
 ALLOWED_ORIGINS = "https://travel.thedylone.com,http://localhost:5173"

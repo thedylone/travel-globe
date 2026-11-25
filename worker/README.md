@@ -44,8 +44,8 @@ You need a free Cloudflare account and Node.js. Run these from the `worker/` fol
 
    A `401` with `missing or bad token` means it's working.
 
-5. **Point the site at it**: add `sync: https://planner-sync.<your-subdomain>.workers.dev` to your data repo's
-   `site.yaml` and push. Once the site has rebuilt, plans in the planner have a **Share** button.
+5. **Point the site at it**: add `sync: https://plan.thedylone.com` (its own domain, see below; or
+   `https://planner-sync.<your-subdomain>.workers.dev`) to your data repo's `site.yaml` and push. Once the site has rebuilt, plans in the planner have a **Share** button.
 
 ## API
 
@@ -53,8 +53,8 @@ You need a free Cloudflare account and Node.js. Run these from the `worker/` fol
 GET /shared                    -> { version, plan, picture? }
 PUT /shared  { version, plan } -> { version, plan, picture? }; 409 with the newest if `version` isn't it
 PUT /shared/picture  (JPEG/PNG) -> { picture }: the trip's link-preview picture
-GET /p/<code>                  -> the share link's page (below)
-GET /p/<code>/picture          -> the trip's picture
+GET /<code>                    -> the share link's page (below)
+GET /<code>/picture            -> the trip's picture
 ```
 
 The API takes `Authorization: Bearer <code>`. A `PUT` with version 0 makes the plan. Plans shared before codes
@@ -63,7 +63,7 @@ use `/plans/<id>` and `/plans/<id>/picture` with their 64-character secret inste
 
 ## Share links and link previews
 
-A share link is `https://planner-sync.<your-subdomain>.workers.dev/p/<code>`. Chat apps don't run scripts, so
+A share link is `https://<the Worker's address>/<code>`, e.g. `https://plan.thedylone.com/Xk3f9QmT2aLp7RvB`. Chat apps don't run scripts, so
 to show a preview they read the page's tags: the Worker answers with the plan's name, dates and first few places,
 and its picture, then sends the browser on to `PLANNER_URL#join=<code>`. The picture (title, dates and the route
 through the trip's places) is drawn by a phone in the planner when the trip is shared and whenever what it shows
@@ -74,9 +74,13 @@ link (and the chat app making its preview) can see the plan anyway.
 `PLANNER_URL` in `wrangler.toml` is where the planner is. Links from before previews (`/planner/#join=…`) still work,
 just without the trip's own preview.
 
-For shorter links, give the Worker a domain of your own (if its DNS is on Cloudflare): Workers & Pages >
-planner-sync > Settings > Domains & Routes > Add > Custom domain, e.g. `plan.example.com`. Then change `sync:` in
-`site.yaml` to `https://plan.example.com`.
+### Its own domain
+
+`routes` in `wrangler.toml` gives the Worker an address of its own (`plan.thedylone.com`), which keeps share
+links short. The deploy makes the domain and its DNS record, as long as the domain's DNS is on Cloudflare; for
+another domain, change the pattern. The workers.dev address stays on too (`workers_dev = true`), so links made
+with it keep working. Once it's deployed, point `sync:` in `site.yaml` at the new address. Remove `routes` to do
+without.
 
 ## Limits
 
