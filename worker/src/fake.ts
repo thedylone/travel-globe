@@ -10,7 +10,7 @@ export const fakeServer = (origins = "https://travel.example.com") => {
             const key = id as string;
             if (!rooms.has(key)) {
                 const data = new Map<string, unknown>();
-                rooms.set(key, new PlanRoom({ storage: { get: async <T>(k: string) => structuredClone(data.get(k)) as T, put: async (k, v) => void data.set(k, structuredClone(v)) } }));
+                rooms.set(key, new PlanRoom({ storage: { get: async <T>(k: string) => structuredClone(data.get(k)) as T, put: async (k, v) => void data.set(k, structuredClone(v)), delete: async (ks) => ks.forEach((k) => data.delete(k)) } }));
             }
             return rooms.get(key)!;
         },
