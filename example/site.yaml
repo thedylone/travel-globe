@@ -10,3 +10,6 @@ name: Sam
 # url: https://<your-github-name>.github.io/<repo-name>
 # Social handle for link previews.
 # twitter: "@sam"
+# The trip planner's sync server, so a plan can be shared and edited on several phones
+# (see worker/README.md in travel-globe). Without it, plans stay on each phone.
+# sync: https://planner-sync.<your-subdomain>.workers.dev

@@ -179,6 +179,20 @@ body:has(.plan) {
     justify-self: start;
 }
 
+.plan-head-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.plan-sync {
+    margin: -4px 0 4px;
+    font-size: 13px;
+}
+
+.plan-sync.failed {
+    color: var(--danger);
+}
+
 .planner-error {
     position: fixed;
     z-index: 2000;
@@ -196,6 +210,11 @@ body:has(.plan) {
     font-weight: 700;
     white-space: pre-line;
     font-size: 14px;
+}
+
+.planner-error.notice {
+    color: var(--text);
+    overflow-wrap: anywhere;
 }
 
 .planner-new {

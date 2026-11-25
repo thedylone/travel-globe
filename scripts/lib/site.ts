@@ -35,6 +35,8 @@ const SiteSchema = z.strictObject({
     url: z.url({ protocol: /^https?$/ }).optional(),
     /** Social handle for link previews, e.g. "@thedylone". */
     twitter: z.string().regex(/^@\w+$/, 'use the form "@name"').optional(),
+    /** The trip planner's sync server (worker/), for sharing plans between phones. */
+    sync: z.url({ protocol: /^https?$/ }).optional(),
 });
 
 export interface Site extends z.infer<typeof SiteSchema> {

@@ -92,6 +92,7 @@ title: Travel History                         # top of the trip list, and the br
 name: thedylone                               # link previews: "thedylone's travels on an interactive globe"
 url: https://travel.thedylone.com              # its path is the base path the site is built for
 twitter: "@thedylone"
+sync: https://planner-sync.<you>.workers.dev  # the planner's sync server, for shared trips (optional)
 ```
 
 Every command works on one data folder: `--data <folder>` if given, else `$TRAVEL_GLOBE_DATA`, else the current
@@ -149,11 +150,25 @@ can have notes, a label for the globe, or be a side trip, and **Places to visit*
 It works without signal (the search and map tiles need it; a place typed offline is added without a location),
 and *Share › Add to Home Screen* (Safari) or *Install app* (Chrome) puts it on your home screen like an app.
 
-Plans are kept in the phone's browser and nowhere else, so **Export** them: it saves the plan as a trip file
+Plans are kept in the phone's browser and nowhere else (unless you share them, see below), so **Export** them: it saves the plan as a trip file
 (`2026-12-japan.yaml`), with a stop for each place on each day (a place on days in a row is one stop, as a
 stay) and the coordinates the search found, through the share sheet (Save to Files, AirDrop, email it to yourself) or as a download.
 Safari can clear a site's data when it isn't opened for a few weeks, so the planner marks plans that changed
 since they were last exported, and asks you to export them. **Open a trip file** brings an exported plan back.
+
+#### Planning together
+
+With a sync server (below), **Share** on a plan puts it online and gives you a link to send. Whoever opens the
+link gets the plan in their own planner, and you can both change it: each phone keeps working offline and
+syncs when the plan opens, a moment after each change, when you come back to it, and every 15 seconds while
+it's open. Changes to different places, or different things about a place, are all kept; if you both change
+the same thing before either phone syncs, the later sync's version wins. A place removed on one phone is
+removed on both. **Share link** sends the link again; deleting a shared plan only takes it off that phone.
+Anyone with the link can see and change the plan, so send it only to people you're planning with.
+
+The sync server is a small Cloudflare Worker in [`worker/`](worker/README.md), free on Cloudflare's free
+plan. Deploy it once, then put its address in `site.yaml` as `sync:`. Without one, there's no Share button
+and plans stay on each phone.
 
 When you're back, open the file in the studio with **Open a planned trip** (or copy it into `data/trips/`), and
 add the photos.
@@ -327,6 +342,7 @@ src/components/       globe, 2D map, trip panel, timeline, photo and share dialo
 src/studio/           the studio (studio.html); its API is scripts/vite-plugin-studio.ts
 src/planner/          the trip planner (planner/index.html); its offline worker is made by scripts/vite-plugin-planner.ts
 public/               the engine's fonts, textures and icons
+worker/               the planner's sync server for shared trips (a Cloudflare Worker, deployed on its own)
 ```
 
 ## Licence

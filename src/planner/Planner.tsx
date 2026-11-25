@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import bases from "virtual:travel-bases";
 import { formatDateRange } from "../lib/dates";
 import {
@@ -24,6 +24,7 @@ import {
 import { PlanMap } from "./PlanMap";
 import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
+import { join, readJoin, settle, share, shareLink, sync, SYNC_URL } from "./sync";
 
 const readHash = () => new URLSearchParams(location.hash.slice(1)).get("plan") ?? undefined;
 const go = (id?: string) => {
@@ -35,6 +36,36 @@ const yamlFile = (p: Plan) => new File([toYaml(p)], fileName(p), { type: "text/y
 const dates = (p: Plan) => (p.start ? formatDateRange({ start: p.start, end: endDate(p) }) : "no dates yet");
 const count = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
+/** How long after an edit a shared plan syncs, and how often it checks for the others' changes while open. */
+const SYNC_AFTER_EDIT = 1500;
+const SYNC_EVERY = 15_000;
+
+/** "just now", "5 min ago", "3 h ago", or the date. */
+const ago = (t: number, now = Date.now()) => {
+    const min = Math.round((now - t) / 60_000);
+    if (min < 1) return "just now";
+    if (min < 60) return `${min} min ago`;
+    if (min < 24 * 60) return `${Math.round(min / 60)} h ago`;
+    return new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
+
+/** Sends a link through the share sheet, or copies it. */
+const sendLink = async (title: string, url: string) => {
+    if (navigator.share) {
+        try {
+            await navigator.share({ title, url });
+            return "";
+        } catch (e) {
+            if ((e as Error).name === "AbortError") return "";
+        }
+    }
+    await navigator.clipboard.writeText(url);
+    return "Link copied. Send it to whoever you're planning with.";
+};
+
+/** A shared plan's sync: whether it's going, or what went wrong last time. */
+type SyncState = "syncing" | "ok" | { error: string };
+
 /** "Sat 20 Dec". */
 const dayLabel = (iso: string) =>
     new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -43,11 +74,29 @@ export const Planner = () => {
     const [plans, setPlans] = useState<Plan[]>();
     const [open, setOpen] = useState(readHash);
     const [error, setError] = useState<string>();
+    /** A message that isn't a problem, shown where problems are. */
+    const [notice, setNotice] = useState<string>();
+    const [syncing, setSyncing] = useState<Record<string, SyncState>>({});
+    /** The plans as they are now, for syncs that finish later. */
+    const current = useRef<Plan[]>([]);
+    current.current = plans ?? [];
 
     useEffect(() => {
-        store.all().then((ps) => setPlans(ps.map(upgrade)), (e: Error) => setError(`Couldn't read your plans: ${e.message}`));
+        store.all().then(
+            (ps) => {
+                const all = ps.map(upgrade);
+                current.current = all;
+                setPlans(all);
+                all.forEach((p) => runSync(p));
+                void openJoin();
+            },
+            (e: Error) => setError(`Couldn't read your plans: ${e.message}`)
+        );
         void persist();
-        const onHash = () => setOpen(readHash());
+        const onHash = () => {
+            setOpen(readHash());
+            void openJoin();
+        };
         addEventListener("hashchange", onHash);
         return () => removeEventListener("hashchange", onHash);
     }, []);
@@ -55,12 +104,101 @@ export const Planner = () => {
     const fail = (e: unknown) => setError(`Couldn't save: ${(e as Error).message}`);
     /** Keeps a plan, in this list and in the browser's storage. */
     const keep = (p: Plan) => {
+        current.current = [p, ...current.current.filter((x) => x.id !== p.id)];
         setPlans((ps) => [p, ...(ps ?? []).filter((x) => x.id !== p.id)].sort((a, b) => b.updated - a.updated));
         store.put(p).catch(fail);
     };
-    const edit = (p: Plan) => keep({ ...p, updated: Date.now() });
+
+    // Syncing shared plans. One sync per plan at a time; an edit during one syncs again after it.
+    const running = useRef(new Map<string, boolean>());
+    const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+    const runSync = useCallback((p: Plan) => {
+        if (!SYNC_URL || !p.shared) return;
+        if (running.current.has(p.id)) {
+            running.current.set(p.id, true);
+            return;
+        }
+        running.current.set(p.id, false);
+        setSyncing((s) => ({ ...s, [p.id]: "syncing" }));
+        sync(p).then(
+            (result) => {
+                const now = current.current.find((x) => x.id === p.id);
+                if (now) keep(settle(p, now, result));
+                setSyncing((s) => ({ ...s, [p.id]: "ok" }));
+            },
+            (e: Error) => setSyncing((s) => ({ ...s, [p.id]: { error: navigator.onLine ? e.message : "offline" } }))
+        ).finally(() => {
+            const again = running.current.get(p.id);
+            running.current.delete(p.id);
+            const now = current.current.find((x) => x.id === p.id);
+            if (again && now) runSync(now);
+        });
+    }, []);
+    const syncSoon = (p: Plan) => {
+        if (!p.shared) return;
+        clearTimeout(timers.current.get(p.id));
+        timers.current.set(p.id, setTimeout(() => runSync(current.current.find((x) => x.id === p.id) ?? p), SYNC_AFTER_EDIT));
+    };
+
+    // The open plan checks for the others' changes every so often, and when the phone comes back to it.
+    const openShared = open && plans?.find((p) => p.id === open)?.shared ? open : undefined;
+    useEffect(() => {
+        if (!SYNC_URL) return;
+        const check = () => {
+            if (document.visibilityState !== "visible") return;
+            const ps = openShared ? current.current.filter((p) => p.id === openShared) : current.current;
+            ps.forEach((p) => runSync(p));
+        };
+        const timer = openShared ? setInterval(check, SYNC_EVERY) : undefined;
+        if (openShared) check();
+        document.addEventListener("visibilitychange", check);
+        addEventListener("online", check);
+        return () => {
+            clearInterval(timer);
+            document.removeEventListener("visibilitychange", check);
+            removeEventListener("online", check);
+        };
+    }, [openShared]);
+
+    /** Opens a share link ("#join=…"): fetches the plan and shows it. */
+    const openJoin = async () => {
+        const link = readJoin(location.hash);
+        if (!link) return;
+        if (!SYNC_URL) return setError("This site can't open shared plans (it has no sync server).");
+        try {
+            keep(await join(link.id, link.secret, current.current.find((p) => p.id === link.id)));
+            history.replaceState(null, "", `#plan=${link.id}`);
+            setOpen(link.id);
+        } catch (e) {
+            setError(`Couldn't open the shared plan: ${(e as Error).message}`);
+        }
+    };
+
+    const edit = (p: Plan) => {
+        const next = { ...p, updated: Date.now() };
+        keep(next);
+        syncSoon(next);
+    };
+    const startSharing = async (p: Plan) => {
+        if (!p.shared) {
+            if (!confirm("Share this trip? Anyone with the link can see it and change it, and changes sync between everyone's phones.")) return;
+            try {
+                p = settle(p, current.current.find((x) => x.id === p.id) ?? p, await share(p));
+                keep(p);
+                setSyncing((s) => ({ ...s, [p.id]: "ok" }));
+            } catch (e) {
+                return setError(`Couldn't share it: ${navigator.onLine ? (e as Error).message : "you're offline"}`);
+            }
+        }
+        try {
+            setNotice((await sendLink(p.title || "Trip plan", shareLink(p))) || undefined);
+        } catch {
+            setNotice(`Send this link to whoever you're planning with: ${shareLink(p)}`);
+        }
+    };
     const remove = (p: Plan) => {
-        if (!confirm(`Delete "${p.title || "untitled trip"}" from this phone?`)) return;
+        const others = p.shared ? " It stays shared, for whoever else has the link." : "";
+        if (!confirm(`Delete "${p.title || "untitled trip"}" from this phone?${others}`)) return;
         setPlans((ps) => ps?.filter((x) => x.id !== p.id));
         store.remove(p.id).catch(fail);
         go();
@@ -91,17 +229,31 @@ export const Planner = () => {
 
     const plan = open ? plans?.find((p) => p.id === open) : undefined;
     const unsaved = (plans ?? []).filter(needsExport);
-    const errorBox = error && (
+    const errorBox = error ? (
         <p className="planner-error" onClick={() => setError(undefined)}>
             {error}
         </p>
+    ) : (
+        notice && (
+            <p className="planner-error notice" onClick={() => setNotice(undefined)}>
+                {notice}
+            </p>
+        )
     );
 
     if (plan) {
         return (
             <>
                 {errorBox}
-                <PlanEditor key={plan.id} plan={plan} onEdit={edit} onExport={() => exportPlans([plan])} onDelete={() => remove(plan)} />
+                <PlanEditor
+                    key={plan.id}
+                    plan={plan}
+                    syncing={syncing[plan.id]}
+                    onEdit={edit}
+                    onExport={() => exportPlans([plan])}
+                    onShare={SYNC_URL ? () => startSharing(plan) : undefined}
+                    onDelete={() => remove(plan)}
+                />
             </>
         );
     }
@@ -145,6 +297,7 @@ export const Planner = () => {
                                     <span className="title">{p.title || "Untitled trip"}</span>
                                     <span className="muted">
                                         {dates(p)} · {count(scheduled(p).length, "place")}
+                                        {p.shared && " · shared"}
                                         {needsExport(p) && <span className="dot" title="Not exported since it changed" />}
                                     </span>
                                 </button>
@@ -174,10 +327,21 @@ export const Planner = () => {
 
 interface EditorProps {
     plan: Plan;
+    syncing?: SyncState;
     onEdit: (p: Plan) => void;
     onExport: () => void;
+    /** Shares the plan, or sends its link again; unset when the site has no sync server. */
+    onShare?: () => void;
     onDelete: () => void;
 }
+
+/** "Shared · synced 2 min ago", or why it isn't. */
+const syncLine = (p: Plan, s?: SyncState) => {
+    if (!p.shared) return "";
+    if (s === "syncing") return "Shared · syncing…";
+    if (s && typeof s === "object") return s.error === "offline" ? "Shared · offline, syncs when back online" : `Shared · couldn't sync: ${s.error}`;
+    return `Shared · synced ${ago(p.shared.synced)}`;
+};
 
 /** Where a place is: on day `day`, or in the ideas (`day` -1). */
 interface At {
@@ -185,7 +349,7 @@ interface At {
     i: number;
 }
 
-const PlanEditor = ({ plan, onEdit, onExport, onDelete }: EditorProps) => {
+const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: EditorProps) => {
     const [focus, setFocus] = useState<number>();
     const [active, setActive] = useState<string>();
     const set = (patch: Partial<Plan>) => onEdit({ ...plan, ...patch });
@@ -268,10 +432,14 @@ const PlanEditor = ({ plan, onEdit, onExport, onDelete }: EditorProps) => {
                     <button className="link" onClick={() => go()}>
                         ‹ Plans
                     </button>
-                    <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
-                        Export
-                    </button>
+                    <span className="plan-head-actions">
+                        {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
+                        <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
+                            Export
+                        </button>
+                    </span>
                 </header>
+                {plan.shared && <p className={`muted plan-sync${typeof syncing === "object" ? " failed" : ""}`}>{syncLine(plan, syncing)}</p>}
                 <input className="plan-title" value={plan.title} placeholder="Trip title" onChange={(e) => set({ title: e.target.value })} />
                 <div className="plan-dates">
                     <label>
@@ -305,7 +473,7 @@ const PlanEditor = ({ plan, onEdit, onExport, onDelete }: EditorProps) => {
                 </div>
                 <details className="plan-details">
                     <summary>
-                        {needsExport(plan) ? "Not exported since it changed" : "Exported"} · From, to, countries
+                        {plan.exported === undefined || plan.updated > plan.exported ? "Not exported since it changed" : "Exported"} · From, to, countries
                     </summary>
                     <div className="plan-fields">
                         <label>

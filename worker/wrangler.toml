@@ -1,0 +1,18 @@
+# The trip planner's sync server: shares a plan between phones. See worker/README.md.
+name = "planner-sync"
+main = "src/index.ts"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Sites allowed to call it from a browser, comma-separated, with no trailing slash.
+ALLOWED_ORIGINS = "https://travel.thedylone.com,http://localhost:5173"
+
+# One Durable Object per shared plan, so two phones saving at once are handled one after the other.
+[[durable_objects.bindings]]
+name = "PLANS"
+class_name = "PlanRoom"
+
+# The free plan only has Durable Objects that keep their data in SQLite.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PlanRoom"]

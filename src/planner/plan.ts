@@ -42,6 +42,18 @@ export interface Plan {
     created: number;
     updated: number;
     exported?: number;
+    /** Set once the plan is shared, to sync it with everyone who has its link (see sync.ts). */
+    shared?: Shared;
+}
+
+export interface Shared {
+    /** The secret in the share link. Anyone with it can see and change the plan. */
+    secret: string;
+    /** The version this phone last synced, and the plan as it was then, to merge changes against. */
+    version: number;
+    base: Omit<Plan, "exported" | "shared">;
+    /** When it last synced, in milliseconds. */
+    synced: number;
 }
 
 const newKey = () => crypto.randomUUID();
@@ -264,8 +276,11 @@ interface OldStop {
     lng?: number;
 }
 
-/** Changed since it was last exported (or never exported), so only this phone has it. */
-export const needsExport = (p: Plan) => p.exported === undefined || p.updated > p.exported;
+/**
+ * Changed since it was last exported (or never exported), so only this phone has it. A shared
+ * plan is kept by the sync server too.
+ */
+export const needsExport = (p: Plan) => !p.shared && (p.exported === undefined || p.updated > p.exported);
 
 /** Moves item `from` so it ends up at index `to`. */
 export const move = <T>(list: T[], from: number, to: number): T[] => {

@@ -15,3 +15,5 @@ declare module "virtual:travel-bases" {
 declare const __SITE_URL__: string;
 /** From site.yaml "title". */
 declare const __SITE_TITLE__: string;
+/** From site.yaml "sync": the trip planner's sync server, or empty. */
+declare const __PLANNER_SYNC__: string;
