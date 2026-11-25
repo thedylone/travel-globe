@@ -30,3 +30,6 @@ yarn-error.log*
 
 # TypeScript build cache
 *.tsbuildinfo
+
+# wrangler dev's local state
+.wrangler

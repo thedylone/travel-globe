@@ -56,6 +56,7 @@ PUT /shared/picture  (JPEG/PNG) -> { picture }: the trip's link-preview picture
 DELETE /shared                 -> { deleted: true }: the plan and its picture, gone for everyone
 GET /<code>                    -> the share link's page (below)
 GET /<code>/picture            -> the trip's picture
+POST /mcp                      -> the connector for AI agents (below)
 ```
 
 The API takes `Authorization: Bearer <code>`. A `PUT` with version 0 makes the plan. Plans shared before codes
@@ -83,6 +84,29 @@ another domain, change the pattern. The workers.dev address stays on too (`worke
 with it keep working. Once it's deployed, point `sync:` in `site.yaml` at the new address. Remove `routes` to do
 without.
 
+## Planning with an AI agent
+
+`/mcp` is a connector ([MCP server](https://modelcontextprotocol.io)) that lets an AI assistant like Claude read
+and change shared trips, so it can plan one with you. Add it once, then give the assistant a trip's share link and
+ask: "plan three days in Kyoto on this trip", "move the temples to day 2", "add a rest day after Osaka".
+
+- **Claude (web, desktop or phone)**: Settings → Connectors → Add custom connector, with the URL
+  `https://plan.thedylone.com/mcp`. It has no sign-in.
+- **Claude Code**: `claude mcp add --transport http trip-planner https://plan.thedylone.com/mcp`
+- **Other assistants**: any that take a "Streamable HTTP" MCP server, at the same address.
+
+Its tools: `get_trip`, `create_trip`, `update_trip` (title, dates, countries), `add_places`, `update_place`,
+`move_place`, `remove_place`, `add_day`, `remove_day`, `move_day` and `search_places`. Every tool but
+`create_trip` and `search_places` takes the share link, which is the key to the trip just as it is for a phone:
+the connector has no access to anything without one, and there's no list of trips. `create_trip` makes a new
+shared trip and gives its link; opening that on a phone adds it to the planner there.
+
+The assistant's changes are saved like a phone's, so they show on every phone with the trip open within about 15
+seconds, and merge with what someone changes at the same time. Places it adds without a location are looked up
+on the map (Photon, as the planner's search does), near the place before them; it's told what was found, to fix
+if it's the wrong one. Trips can't be deleted through it. The trip's link-preview picture is drawn by a phone,
+so it catches up with the assistant's changes the next time a phone has the trip open.
+
 ## Deleting shared plans
 
 Deleting a shared plan in the planner asks whether to delete it for everyone with the link too. That deletes it
@@ -98,6 +122,6 @@ sync; nothing is charged.
 
 ## Changing the code
 
-The Worker is `src/index.ts`; its tests (`src/index.test.ts`) run with `npm test` from the repo root, along with
+The Worker is `src/index.ts` (started from `src/main.ts`), and the connector for AI agents `src/mcp.ts`; their tests (`src/index.test.ts`) run with `npm test` from the repo root, along with
 the planner's sync and merge tests (`src/planner/sync.test.ts`). Run `npx wrangler@4 deploy` again after
 changing it.
