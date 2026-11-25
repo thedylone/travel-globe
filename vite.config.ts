@@ -26,6 +26,8 @@ export default defineConfig({
         // Shown on the share image, e.g. "thedylone.github.io/travel-history".
         __SITE_URL__: JSON.stringify(site.shortUrl),
         __SITE_TITLE__: JSON.stringify(site.title),
+        // The trip planner's sync server; sharing plans is hidden without one.
+        __PLANNER_SYNC__: JSON.stringify(site.sync ?? ""),
     },
     build: {
         // Next to the data, not inside the engine (which may be in node_modules).
@@ -37,5 +39,5 @@ export default defineConfig({
             input: { globe: path.join(ENGINE_ROOT, "index.html"), planner: path.join(ENGINE_ROOT, "planner/index.html") },
         },
     },
-    test: { include: ["src/**/*.test.ts", "scripts/**/*.test.ts"] },
+    test: { include: ["src/**/*.test.ts", "scripts/**/*.test.ts", "worker/**/*.test.ts"] },
 });
