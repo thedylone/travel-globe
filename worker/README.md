@@ -52,10 +52,22 @@ You need a free Cloudflare account and Node.js. Run these from the `worker/` fol
 ```
 GET /plans/<id>                       -> { version, plan }
 PUT /plans/<id>  { version, plan }    -> { version, plan }; 409 with the newest if `version` isn't it
+GET /p/<id>.<secret>                  -> the share link's page (below)
 ```
 
 Both take `Authorization: Bearer <secret>` (64 hex characters). A `PUT` with version 0 makes the plan, and that
 secret is the plan's from then on.
+
+## Share links and link previews
+
+A share link is `https://planner-sync.<your-subdomain>.workers.dev/p/<id>.<secret>`. Chat apps don't run
+scripts, so to show a preview they read the page's tags: the Worker answers with the plan's name, its dates and
+first few places, and the planner's picture (`planner/preview.png`, made with the site), then sends the browser
+on to `PLANNER_URL#join=<id>.<secret>`. The name only shows for the right secret, and the page is never cached
+or indexed. Whoever gets the link (and the chat app making its preview) can see the plan anyway.
+
+`PLANNER_URL` in `wrangler.toml` is where the planner is. Links from before this (`/planner/#join=…`) still work,
+just without the trip's own preview.
 
 ## Limits
 

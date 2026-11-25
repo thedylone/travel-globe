@@ -6,6 +6,8 @@ compatibility_date = "2026-11-01"
 [vars]
 # Sites allowed to call it from a browser, comma-separated, with no trailing slash.
 ALLOWED_ORIGINS = "https://travel.thedylone.com,http://localhost:5173"
+# The planner, where share links go. Its preview.png (made with the site) is the links' picture.
+PLANNER_URL = "https://travel.thedylone.com/planner/"
 
 # One Durable Object per shared plan, so two phones saving at once are handled one after the other.
 [[durable_objects.bindings]]

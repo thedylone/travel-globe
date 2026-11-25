@@ -9,6 +9,9 @@
 // GET /plans/<id>                               -> { version, plan }
 // PUT /plans/<id>  { version, plan }            -> { version, plan }, or 409 with the newest
 //                                                  (version 0 makes the plan, the first time)
+// GET /p/<id>.<secret>                          -> the share link: a page with link-preview tags
+//                                                  that goes on to the planner (see preview.ts)
+import { previewPage } from "./preview";
 
 /** The bits of the Durable Object storage this uses. */
 export interface RoomStorage {
@@ -30,12 +33,16 @@ export interface Env {
     PLANS: RoomNamespace;
     /** Comma-separated origins allowed to call this from a browser. */
     ALLOWED_ORIGINS: string;
+    /** The planner's address, which share links go on to. Its preview.png is the links' picture. */
+    PLANNER_URL?: string;
 }
 
 /** A plan is a few KB; this leaves room for a long trip with long notes. */
 export const MAX_BODY_BYTES = 512 * 1024;
 const TOKEN = /^Bearer ([0-9a-f]{64})$/;
-const PLAN_PATH = /^\/plans\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const PLAN_PATH = new RegExp(`^/plans/(${UUID})$`);
+const SHARE_PATH = new RegExp(`^/p/(${UUID})\\.([0-9a-f]{64})$`);
 
 interface Room {
     /** SHA-256 of the secret, in hex. */
@@ -84,8 +91,38 @@ const looksLikePlan = (p: unknown, id: string) => {
     return x.id === id && Array.isArray(x.days) && Array.isArray(x.ideas) && typeof x.title === "string";
 };
 
+/** The planner's address: PLANNER_URL, or <the first allowed origin>/planner/. */
+const plannerUrl = (env: Env) =>
+    (env.PLANNER_URL || `${(env.ALLOWED_ORIGINS ?? "").split(",")[0].trim().replace(/\/+$/, "")}/planner/`).replace(/\/*$/, "/");
+
+/**
+ * A share link, opened by a person or by a chat app making its preview. The preview names the plan
+ * only when the secret opens it; either way the page goes on to the planner, which says if the
+ * link is wrong.
+ */
+const sharePage = async (request: Request, env: Env, id: string, token: string): Promise<Response> => {
+    const room = env.PLANS.get(env.PLANS.idFromName(id));
+    const res = await room.fetch(new Request(`https://plans.internal/plans/${id}`, { headers: { Authorization: `Bearer ${token}` } }));
+    const plan = res.ok ? ((await res.json()) as { plan?: object }).plan : undefined;
+    const planner = plannerUrl(env);
+    const html = previewPage({ plan, url: request.url, planner: `${planner}#join=${id}.${token}`, image: `${planner}preview.png` });
+    return new Response(request.method === "HEAD" ? null : html, {
+        headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            // It has the plan's name in it: never kept by a shared cache or a search engine.
+            "Cache-Control": "private, no-store",
+            "X-Robots-Tag": "noindex",
+            "Referrer-Policy": "no-referrer",
+            "Content-Security-Policy": "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'",
+        },
+    });
+};
+
 /** The Worker: checks where a request is from and what it's for, and passes it to the plan's room. */
 export const handle = async (request: Request, env: Env): Promise<Response> => {
+    const link = SHARE_PATH.exec(new URL(request.url).pathname);
+    if (link && (request.method === "GET" || request.method === "HEAD")) return sharePage(request, env, link[1], link[2]);
+
     const origin = allowedOrigin(request, env);
     if (origin === false) return json({ error: "origin not allowed" }, 403);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });

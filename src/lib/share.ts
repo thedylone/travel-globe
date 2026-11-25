@@ -258,3 +258,61 @@ export const renderShareSvg = (input: ShareInput): string => {
         `${font}<rect width="${W}" height="${H}" fill="${C.bg}"/>${body}</svg>`
     );
 };
+
+/**
+ * The trip planner's link-preview picture (1200×630, planner/preview.png): the world map with the
+ * places you've been, and a plan's days on a card. Shared plans' links use it too.
+ */
+export const renderPlannerSvg = (input: Pick<ShareInput, "countries" | "stops" | "url" | "fontDataUrl"> & { theme?: ShareTheme }): string => {
+    const { width: W, height: H } = SHARE_SIZES.wide;
+    const C = PALETTES[input.theme ?? "light"];
+    const d = pen(C);
+    const P = 64;
+    const map = { ...input, stats: undefined as never, size: "wide" as const, theme: input.theme ?? "light" };
+    const geo = mapGeometry(map);
+    const mapW = 640;
+    const mapH = mapW * geo.aspect;
+    const parts = [mapLayer(map, C, geo, W - P - mapW, (H - mapH) / 2 - 40, mapW, mapH)];
+
+    parts.push(d.label(P, P + 30, 20, "Trip planner"));
+    parts.push(d.text(P, P + 150, 76, "Plan the", { "font-weight": 800, "letter-spacing": -1.5 }));
+    parts.push(d.text(P, P + 232, 76, "next trip", { "font-weight": 800, "letter-spacing": -1.5, fill: C.visited }));
+    parts.push(d.text(P, P + 292, 26, "Day by day, even offline,", { fill: C.muted, "font-weight": 500 }));
+    parts.push(d.text(P, P + 328, 26, "and together.", { fill: C.muted, "font-weight": 500 }));
+    if (input.url) parts.push(d.text(P, H - P, 20, esc(`${input.url}/planner`), { fill: C.muted, "font-weight": 500 }));
+
+    // A plan's days: a card over the map, with a dashed route through them.
+    const cw = 330;
+    const rowH = 62;
+    const days = [
+        ["Day 1", 0.72],
+        ["Day 2", 0.5],
+        ["Day 3", 0.62],
+    ] as const;
+    const ch = 44 + days.length * rowH;
+    const cx = W - P - mapW - 24;
+    const cy = H - P - ch + 24;
+    parts.push(
+        `<rect x="${cx + 6}" y="${cy + 8}" width="${cw}" height="${ch}" rx="22" fill="${C.land}" opacity="0.6"/>` +
+            `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" rx="22" fill="${C.bg}" stroke="${C.land}" stroke-width="2"/>`
+    );
+    const dotX = cx + 40;
+    const rowY = (i: number) => cy + 22 + rowH / 2 + i * rowH;
+    parts.push(
+        `<line x1="${dotX}" y1="${rowY(0)}" x2="${dotX}" y2="${rowY(days.length - 1)}" stroke="${C.visited}" stroke-width="3" stroke-dasharray="2 9" stroke-linecap="round"/>`
+    );
+    days.forEach(([name, fill], i) => {
+        const y = rowY(i);
+        parts.push(`<circle cx="${dotX}" cy="${y}" r="9" fill="${C.visited}" stroke="${C.bg}" stroke-width="4"/>`);
+        parts.push(d.label(dotX + 28, y - 6, 15, name));
+        parts.push(`<rect x="${dotX + 28}" y="${y + 6}" width="${((cw - 110) * fill).toFixed(0)}" height="10" rx="5" fill="${C.land}"/>`);
+    });
+
+    const font = input.fontDataUrl
+        ? `<style>@font-face{font-family:'${SHARE_FONT}';src:url(${input.fontDataUrl}) format('truetype');font-weight:200 800}</style>`
+        : "";
+    return (
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="${FAMILY}">` +
+        `${font}<rect width="${W}" height="${H}" fill="${C.bg}"/>${parts.join("")}</svg>`
+    );
+};

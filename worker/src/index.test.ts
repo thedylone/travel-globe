@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fakeServer } from "./fake";
+import { dateRange, describePlan } from "./preview";
 
 const ID = "0b7c6f0e-4a8e-4f61-9d39-1d3f4f2c9a10";
 const SECRET = "a".repeat(64);
@@ -49,5 +50,42 @@ describe("planner sync worker", () => {
         const pre = await server(new Request(`https://sync.example.com/plans/${ID}`, { method: "OPTIONS", headers: { Origin: "https://travel.example.com" } }));
         expect(pre.status).toBe(204);
         expect(pre.headers.get("Access-Control-Allow-Methods")).toContain("PUT");
+    });
+
+    it("gives share links a preview, then sends them on to the planner", async () => {
+        const server = fakeServer();
+        const days = [{ places: [{ place: "Tokyo, Japan", name: "" }, { place: "Shibuya Sky", name: "Shibuya" }] }, { places: [{ place: "Kyoto", name: "" }] }];
+        await server(req("PUT", { version: 0, plan: { ...plan('japan <3 "26"'), start: "2026-12-20", days } }));
+        const open = (secret: string) => server(new Request(`https://sync.example.com/p/${ID}.${secret}`));
+
+        const res = await open(SECRET);
+        expect(res.status).toBe(200);
+        expect(res.headers.get("Content-Type")).toContain("text/html");
+        expect(res.headers.get("Cache-Control")).toContain("no-store");
+        const page = await res.text();
+        expect(page).toContain('<meta property="og:title" content="japan &lt;3 &quot;26&quot;" />');
+        expect(page).toContain("20–21 Dec 2026 · Tokyo, Shibuya and Kyoto. A shared trip plan.");
+        expect(page).toContain('content="https://travel.example.com/planner/preview.png"');
+        expect(page).toContain(`location.replace("https://travel.example.com/planner/#join=${ID}.${SECRET}")`);
+
+        // The wrong secret doesn't show the plan, but still goes on (the planner says what's wrong).
+        const wrong = await (await open("b".repeat(64))).text();
+        expect(wrong).not.toContain("japan");
+        expect(wrong).toContain(`#join=${ID}.${"b".repeat(64)}`);
+        expect((await server(new Request(`https://sync.example.com/p/${ID}.short`))).status).toBe(404);
+    });
+
+    it("describes plans in a line", () => {
+        expect(dateRange("2027-04-03", 7)).toBe("3–9 Apr 2027");
+        expect(dateRange("2027-03-28", 6)).toBe("28 Mar – 2 Apr 2027");
+        expect(dateRange("2026-12-30", 5)).toBe("30 Dec 2026 – 3 Jan 2027");
+        expect(dateRange("2027-04-03", 1)).toBe("3 Apr 2027");
+        expect(dateRange("", 3)).toBe("");
+        const place = (name: string) => ({ place: name, name: "" });
+        expect(describePlan({ title: " ", days: [{ places: ["A", "B", "C", "D", "E"].map(place) }, { places: [] }] })).toEqual({
+            title: "A trip plan",
+            description: "2 days · A, B, C and 2 more. A shared trip plan.",
+        });
+        expect(describePlan({ title: "x", days: [], country: "Japan" }).description).toBe("Japan. A shared trip plan.");
     });
 });

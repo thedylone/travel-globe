@@ -11,9 +11,12 @@ export const SYNC_URL = __PLANNER_SYNC__.replace(/\/+$/, "");
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const newSecret = () => hex(crypto.getRandomValues(new Uint8Array(32)));
 
-/** The link that opens a shared plan on another phone. */
-export const shareLink = (p: Plan, base = `${location.origin}${location.pathname}`) =>
-    p.shared ? `${base}#join=${p.id}.${p.shared.secret}` : "";
+/**
+ * The link that opens a shared plan on another phone. It goes through the sync server, which
+ * gives chat apps a preview with the plan's name and dates, then on to the planner's
+ * "#join=<id>.<secret>" (which still works on its own, for links shared before).
+ */
+export const shareLink = (p: Plan, server = SYNC_URL) => (p.shared ? `${server}/p/${p.id}.${p.shared.secret}` : "");
 
 /** The plan and secret in a share link's "#join=…", if it has one. */
 export const readJoin = (hash: string) => {

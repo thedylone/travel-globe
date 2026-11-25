@@ -89,7 +89,13 @@ describe("syncing shared plans", () => {
         expect(mine.exported).toBe(5);
         expect(needsExport(mine)).toBe(false);
 
-        const link = readJoin(new URL(shareLink(mine, "https://travel.example.com/planner/")).hash);
+        // The link opens the server's preview page, which goes on to the planner's "#join=…".
+        const url = shareLink(mine, "");
+        expect(url).toBe(`/p/${mine.id}.${mine.shared!.secret}`);
+        const page = await (await fetch(url, { headers: {} })).text();
+        const target = JSON.parse(/location\.replace\(([^)]+)\)/.exec(page)![1]) as string;
+        expect(page).toContain('content="japan"');
+        const link = readJoin(new URL(target).hash);
         expect(link).toEqual({ id: mine.id, secret: mine.shared!.secret });
         const hers = await join(link!.id, link!.secret);
         expect(content(hers)).toEqual(content(mine));
