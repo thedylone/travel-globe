@@ -148,8 +148,12 @@ export const GlobeView = (props: Props) => {
     const mapStyle = MAP_STYLE[theme];
     const globe = useRef<GlobeMethods | undefined>(undefined);
     const win = useWindowSize();
-    const width = Math.max(1, win.width - inset.left);
-    const height = Math.max(1, win.height - inset.bottom);
+    // The canvas always fills the window. Opening the panel or timeline slides it over by half
+    // the space they take (a CSS transition), so the globe recentres smoothly. Resizing the canvas
+    // instead cleared it and snapped the camera, which made the globe jump.
+    const width = win.width;
+    const height = win.height;
+    const shift = { "--dx": `${inset.left / 2}px`, "--dy": `${inset.bottom / 2}px` } as React.CSSProperties;
 
     // --- level of detail: cluster radius follows the camera altitude ---
     const [radius, setRadius] = useState(() => clusterRadiusDeg(initialView.altitude, height));
@@ -397,7 +401,7 @@ export const GlobeView = (props: Props) => {
     return (
         <div
             className={`globe${radius < 1 ? " globe--labels" : ""}`}
-            style={{ left: inset.left, width, height, visibility: active ? undefined : "hidden" }}
+            style={{ ...shift, width, height, visibility: active ? undefined : "hidden" }}
             onWheel={onWheel}
         >
             <Globe

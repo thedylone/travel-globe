@@ -77,8 +77,18 @@ input[type="checkbox"]:active {
 .globe {
     position: fixed;
     top: 0;
+    left: 0;
     z-index: 0;
     isolation: isolate;
+    transform: translate(var(--dx, 0px), calc(-1 * var(--dy, 0px)));
+    /* Matches the panel's slide, without its overshoot. */
+    transition: transform 0.35s cubic-bezier(0.3, 1, 0.5, 1);
+}
+
+/* Keep the credit in the visible corner, above the timeline, while the canvas is shifted. */
+.globe .credit {
+    transform: translate(calc(-1 * var(--dx, 0px)), calc(-1 * var(--dy, 0px)));
+    transition: transform 0.35s cubic-bezier(0.3, 1, 0.5, 1);
 }
 
 .credit {
