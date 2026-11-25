@@ -38,28 +38,52 @@ const manifest = (site: Site) =>
         2
     );
 
-/** Link-preview tags. The image is made by scripts/stats-image.ts on every build. */
-const previewTags = (site: Site) => {
-    const title = site.name ? `${site.name}'s travel history` : site.title;
+interface Preview {
+    title: string;
+    description: string;
+    /** The page's path and its picture's, from the site's address. */
+    page: string;
+    image: string;
+}
+
+/** Link-preview tags. The pictures are made by scripts/stats-image.ts on every build. */
+const previewTags = (site: Site, p: Preview) => {
     const tags: [string, string, string][] = [
-        ["property", "og:title", title],
-        ["property", "og:description", site.description],
+        ["property", "og:title", p.title],
+        ["property", "og:description", p.description],
         ["property", "og:type", "website"],
     ];
     if (site.url) {
         const url = site.url.replace(/\/*$/, "/");
         tags.push(
-            ["property", "og:url", url],
-            ["property", "og:image", `${url}stats-wide.png`],
+            ["property", "og:url", `${url}${p.page}`],
+            ["property", "og:image", `${url}${p.image}`],
             ["property", "og:image:width", "1200"],
             ["property", "og:image:height", "630"],
             ["name", "twitter:card", "summary_large_image"],
-            ["name", "twitter:image", `${url}stats-wide.png`]
+            ["name", "twitter:image", `${url}${p.image}`]
         );
     }
     if (site.twitter) tags.push(["name", "twitter:creator", site.twitter]);
     return tags.map(([attr, key, value]) => `<meta ${attr}="${key}" content="${escapeHtml(value)}" />`).join("\n    ");
 };
+
+const PLANNER_DESCRIPTION = "Plan trips day by day on your phone, even offline, and share them to plan together.";
+
+const sitePreview = (site: Site): Preview => ({
+    title: site.name ? `${site.name}'s travel history` : site.title,
+    description: site.description,
+    page: "",
+    image: "stats-wide.png",
+});
+
+/** The planner's preview. A shared plan's link gets its own, from the sync server (worker/). */
+const plannerPreview = (site: Site): Preview => ({
+    title: site.name ? `${site.name}'s trip planner` : `Trip planner · ${site.title}`,
+    description: PLANNER_DESCRIPTION,
+    page: "planner/",
+    image: "planner/preview.png",
+});
 
 /**
  * Connects the site to a data folder (see README, "Data folder"):
@@ -97,7 +121,8 @@ export const travelData = ({ dataDir, site }: { dataDir: string; site: Site }): 
             return html
                 .replaceAll("%SITE_TITLE%", escapeHtml(site.title))
                 .replaceAll("%SITE_DESCRIPTION%", escapeHtml(site.description))
-                .replace("<!-- %SITE_PREVIEW% -->", previewTags(site));
+                .replace("<!-- %SITE_PREVIEW% -->", previewTags(site, sitePreview(site)))
+                .replace("<!-- %PLANNER_PREVIEW% -->", previewTags(site, plannerPreview(site)));
         },
         generateBundle() {
             this.emitFile({ type: "asset", fileName: "manifest.json", source: manifest(site) });

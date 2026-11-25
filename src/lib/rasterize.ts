@@ -1,5 +1,8 @@
 /** Draws an SVG string onto a canvas and returns it as a PNG. */
-export const svgToPng = async (svg: string, width: number, height: number): Promise<Blob> => {
+export const svgToPng = (svg: string, width: number, height: number) => svgToImage(svg, width, height, "image/png");
+
+/** Draws an SVG string onto a canvas and returns it as a PNG or JPEG. */
+export const svgToImage = async (svg: string, width: number, height: number, type: "image/png" | "image/jpeg"): Promise<Blob> => {
     const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
     try {
         const img = new Image(width, height);
@@ -10,7 +13,7 @@ export const svgToPng = async (svg: string, width: number, height: number): Prom
         canvas.height = height;
         canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
         return await new Promise((resolve, reject) =>
-            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't create the image"))), "image/png")
+            canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't create the image"))), type, 0.88)
         );
     } finally {
         URL.revokeObjectURL(url);

@@ -7,11 +7,12 @@
  *   stats-story.png   1080×1920  stories
  *   stats-wide.png    1200×630   link previews (the site's og:image)
  * each also as a light version: stats-light.png, stats-story-light.png, stats-wide-light.png.
+ * And the trip planner's link preview, planner/preview.png (1200×630), which shared plans' links use too.
  */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { renderShareSvg, SHARE_SIZES, type ShareSize, type ShareTheme } from "../src/lib/share.ts";
+import { renderPlannerSvg, renderShareSvg, SHARE_SIZES, type ShareSize, type ShareTheme } from "../src/lib/share.ts";
 import { computeStats } from "../src/lib/stats.ts";
 import { countryFeatures } from "./lib/countries.ts";
 import { loadTravelData } from "./lib/load.ts";
@@ -57,4 +58,8 @@ for (const theme of ["dark", "light"] as const) {
         console.log(`wrote ${path.relative(process.cwd(), file)}`);
     }
 }
+const planner = path.join(outDir, "planner", "preview.png");
+fs.mkdirSync(path.dirname(planner), { recursive: true });
+await sharp(Buffer.from(renderPlannerSvg(input))).png({ compressionLevel: 9 }).toFile(planner);
+console.log(`wrote ${path.relative(process.cwd(), planner)}`);
 fs.rmSync(confDir, { recursive: true, force: true });

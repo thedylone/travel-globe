@@ -8,17 +8,29 @@ import type { Plan } from "./plan";
 /** The sync server's address, from site.yaml; sharing is hidden without one. */
 export const SYNC_URL = __PLANNER_SYNC__.replace(/\/+$/, "");
 
-const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
-export const newSecret = () => hex(crypto.getRandomValues(new Uint8Array(32)));
+/** A share code: 16 characters of base64url (96 random bits). It's the share link and the key to the plan. */
+export const newCode = () =>
+    btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(12))))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_");
 
-/** The link that opens a shared plan on another phone. */
-export const shareLink = (p: Plan, base = `${location.origin}${location.pathname}`) =>
-    p.shared ? `${base}#join=${p.id}.${p.shared.secret}` : "";
+/** Plans shared before codes have a 64-character secret, used with their id. */
+const isOldSecret = (secret: string) => /^[0-9a-f]{64}$/.test(secret);
 
-/** The plan and secret in a share link's "#join=…", if it has one. */
-export const readJoin = (hash: string) => {
-    const m = /^([0-9a-f-]{36})\.([0-9a-f]{64})$/.exec(new URLSearchParams(hash.replace(/^#/, "")).get("join") ?? "");
-    return m ? { id: m[1], secret: m[2] } : undefined;
+/**
+ * The link that opens a shared plan on another phone. It goes through the sync server, which
+ * gives chat apps a preview with the plan's name, dates and picture, then on to the planner's
+ * "#join=…".
+ */
+export const shareLink = (p: Plan, server = SYNC_URL) =>
+    !p.shared ? "" : isOldSecret(p.shared.secret) ? `${server}/p/${p.id}.${p.shared.secret}` : `${server}/${p.shared.secret}`;
+
+/** The code (or, from older links, the plan and secret) in a share link's "#join=…", if it has one. */
+export const readJoin = (hash: string): { id?: string; secret: string } | undefined => {
+    const join = new URLSearchParams(hash.replace(/^#/, "")).get("join") ?? "";
+    const old = /^([0-9a-f-]{36})\.([0-9a-f]{64})$/.exec(join);
+    if (old) return { id: old[1], secret: old[2] };
+    return /^[A-Za-z0-9_-]{16}$/.test(join) ? { secret: join } : undefined;
 };
 
 interface Saved {
@@ -32,13 +44,10 @@ class Conflict extends Error {
     }
 }
 
-const request = async (id: string, secret: string, body?: { version: number; plan: PlanContent }): Promise<Saved> => {
-    const res = await fetch(`${SYNC_URL}/plans/${id}`, {
-        method: body ? "PUT" : "GET",
-        headers: { Authorization: `Bearer ${secret}`, ...(body ? { "Content-Type": "application/json" } : {}) },
-        body: body && JSON.stringify(body),
-        cache: "no-store",
-    });
+/** The plan's address on the server: by its code, or by its id for plans shared before codes. */
+const address = (id: string | undefined, secret: string) => (isOldSecret(secret) ? `${SYNC_URL}/plans/${id}` : `${SYNC_URL}/shared`);
+
+const check = async (res: Response) => {
     if (res.status === 409) throw new Conflict(await res.json());
     if (res.status === 404) throw new Error("this shared plan isn't on the server any more");
     if (res.status === 403) throw new Error("this link doesn't open that plan");
@@ -46,22 +55,46 @@ const request = async (id: string, secret: string, body?: { version: number; pla
     return res.json();
 };
 
+const request = async (id: string | undefined, secret: string, body?: { version: number; plan: PlanContent }): Promise<Saved> =>
+    check(
+        await fetch(address(id, secret), {
+            method: body ? "PUT" : "GET",
+            headers: { Authorization: `Bearer ${secret}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+            body: body && JSON.stringify(body),
+            cache: "no-store",
+        })
+    );
+
+/** Sends the trip's link-preview picture (see picture.ts). */
+export const sendPicture = async (p: Plan, picture: Blob): Promise<void> => {
+    if (!p.shared) return;
+    await check(
+        await fetch(`${address(p.id, p.shared.secret)}/picture`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${p.shared.secret}`, "Content-Type": picture.type },
+            body: picture,
+        })
+    );
+};
+
 /** The plan as the server has it, as a plan on this phone, with `local`'s own bits kept. */
 const fromServer = (s: Saved, secret: string, local?: Plan, now = Date.now()): Plan => ({
     ...s.plan,
     exported: local?.exported,
-    shared: { secret, version: s.version, base: s.plan, synced: now },
+    shared: { secret, version: s.version, base: s.plan, synced: now, picture: local?.shared?.picture },
 });
 
-/** Puts a plan on the server for the first time, with a new secret. */
+/** Puts a plan on the server for the first time, with a new code. */
 export const share = async (p: Plan): Promise<Plan> => {
-    const secret = newSecret();
+    const secret = newCode();
     return fromServer(await request(p.id, secret, { version: 0, plan: content(p) }), secret, p);
 };
 
-/** Fetches a plan from its share link. */
-export const join = async (id: string, secret: string, local?: Plan): Promise<Plan> => {
-    const saved = await request(id, secret);
+/** Fetches a plan from its share link; `plans` are the ones on this phone, which may have it already. */
+export const join = async (link: { id?: string; secret: string }, plans: Plan[]): Promise<Plan> => {
+    const { secret } = link;
+    const saved = await request(link.id, secret);
+    const local = plans.find((p) => p.id === saved.plan.id);
     if (!local?.shared) return fromServer(saved, secret, local);
     // Already on this phone: keep what it changed since it last synced.
     return sync({ ...local, shared: { ...local.shared, secret } });

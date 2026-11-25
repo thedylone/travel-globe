@@ -24,7 +24,9 @@ import {
 import { PlanMap } from "./PlanMap";
 import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
-import { join, readJoin, settle, share, shareLink, sync, SYNC_URL } from "./sync";
+import { pictureKey, tripPicture } from "./picture";
+import { join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL } from "./sync";
+import { shareFontDataUrl } from "../lib/rasterize";
 
 const readHash = () => new URLSearchParams(location.hash.slice(1)).get("plan") ?? undefined;
 const go = (id?: string) => {
@@ -109,6 +111,23 @@ export const Planner = () => {
         store.put(p).catch(fail);
     };
 
+    // A shared plan's link-preview picture: drawn and sent again when what it shows changes.
+    const drawing = useRef(new Set<string>());
+    const updatePicture = useCallback(async (p: Plan) => {
+        const key = pictureKey(p);
+        if (!p.shared || p.shared.picture === key || drawing.current.has(p.id)) return;
+        drawing.current.add(p.id);
+        try {
+            await sendPicture(p, await tripPicture(p, await shareFontDataUrl().catch(() => undefined)));
+            const now = current.current.find((x) => x.id === p.id);
+            if (now?.shared) keep({ ...now, shared: { ...now.shared, picture: key } });
+        } catch {
+            // Not worth bothering anyone over: the link shows the planner's picture until the next try.
+        } finally {
+            drawing.current.delete(p.id);
+        }
+    }, []);
+
     // Syncing shared plans. One sync per plan at a time; an edit during one syncs again after it.
     const running = useRef(new Map<string, boolean>());
     const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -123,7 +142,11 @@ export const Planner = () => {
         sync(p).then(
             (result) => {
                 const now = current.current.find((x) => x.id === p.id);
-                if (now) keep(settle(p, now, result));
+                if (now) {
+                    const kept = settle(p, now, result);
+                    keep(kept);
+                    void updatePicture(kept);
+                }
                 setSyncing((s) => ({ ...s, [p.id]: "ok" }));
             },
             (e: Error) => setSyncing((s) => ({ ...s, [p.id]: { error: navigator.onLine ? e.message : "offline" } }))
@@ -133,7 +156,7 @@ export const Planner = () => {
             const now = current.current.find((x) => x.id === p.id);
             if (again && now) runSync(now);
         });
-    }, []);
+    }, [updatePicture]);
     const syncSoon = (p: Plan) => {
         if (!p.shared) return;
         clearTimeout(timers.current.get(p.id));
@@ -166,9 +189,10 @@ export const Planner = () => {
         if (!link) return;
         if (!SYNC_URL) return setError("This site can't open shared plans (it has no sync server).");
         try {
-            keep(await join(link.id, link.secret, current.current.find((p) => p.id === link.id)));
-            history.replaceState(null, "", `#plan=${link.id}`);
-            setOpen(link.id);
+            const p = await join(link, current.current);
+            keep(p);
+            history.replaceState(null, "", `#plan=${p.id}`);
+            setOpen(p.id);
         } catch (e) {
             setError(`Couldn't open the shared plan: ${(e as Error).message}`);
         }
@@ -186,6 +210,8 @@ export const Planner = () => {
                 p = settle(p, current.current.find((x) => x.id === p.id) ?? p, await share(p));
                 keep(p);
                 setSyncing((s) => ({ ...s, [p.id]: "ok" }));
+                // Alongside sending the link: it's there before anyone opens it.
+                void updatePicture(p);
             } catch (e) {
                 return setError(`Couldn't share it: ${navigator.onLine ? (e as Error).message : "you're offline"}`);
             }
