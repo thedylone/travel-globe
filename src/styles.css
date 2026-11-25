@@ -382,7 +382,7 @@ input[type="checkbox"]:active {
     flex: 1;
     min-width: 0;
     display: grid;
-    grid-template-columns: 10px 1fr;
+    grid-template-columns: 10px minmax(0, 1fr);
     column-gap: 8px;
     padding: 0;
     border: 0;
@@ -412,6 +412,10 @@ input[type="checkbox"]:active {
 .trip__date {
     font-size: 12px;
     color: var(--text-muted);
+    /* One line, always: a row is exactly two ruled lines tall, so a wrapped date would spill out of it. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .setting {
