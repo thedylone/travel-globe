@@ -25,7 +25,7 @@ import { PlanMap } from "./PlanMap";
 import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
 import { pictureKey, tripPicture } from "./picture";
-import { join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL } from "./sync";
+import { Gone, join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL, unshare } from "./sync";
 import { shareFontDataUrl } from "../lib/rasterize";
 
 const readHash = () => new URLSearchParams(location.hash.slice(1)).get("plan") ?? undefined;
@@ -149,7 +149,17 @@ export const Planner = () => {
                 }
                 setSyncing((s) => ({ ...s, [p.id]: "ok" }));
             },
-            (e: Error) => setSyncing((s) => ({ ...s, [p.id]: { error: navigator.onLine ? e.message : "offline" } }))
+            (e: Error) => {
+                const now = current.current.find((x) => x.id === p.id);
+                if (e instanceof Gone && now?.shared) {
+                    // Deleted for everyone on another phone: this one keeps it, as its own.
+                    keep({ ...now, shared: undefined });
+                    setSyncing((s) => ({ ...s, [p.id]: "ok" }));
+                    setNotice(`"${now.title || "untitled trip"}" was deleted for everyone on another phone. It's still on this one, no longer shared.`);
+                    return;
+                }
+                setSyncing((s) => ({ ...s, [p.id]: { error: navigator.onLine ? e.message : "offline" } }));
+            }
         ).finally(() => {
             const again = running.current.get(p.id);
             running.current.delete(p.id);
@@ -222,9 +232,16 @@ export const Planner = () => {
             setNotice(`Send this link to whoever you're planning with: ${shareLink(p)}`);
         }
     };
-    const remove = (p: Plan) => {
-        const others = p.shared ? " It stays shared, for whoever else has the link." : "";
-        if (!confirm(`Delete "${p.title || "untitled trip"}" from this phone?${others}`)) return;
+    const remove = async (p: Plan) => {
+        const name = p.title || "untitled trip";
+        if (!confirm(`Delete "${name}" from this phone?`)) return;
+        if (p.shared && confirm(`Delete "${name}" for everyone with the link too? Its link stops working.\n\nCancel keeps it for them.`)) {
+            try {
+                await unshare(p);
+            } catch (e) {
+                return setError(`Couldn't delete it for everyone: ${navigator.onLine ? (e as Error).message : "you're offline"}. It's still here; try again.`);
+            }
+        }
         setPlans((ps) => ps?.filter((x) => x.id !== p.id));
         store.remove(p.id).catch(fail);
         go();
@@ -278,7 +295,7 @@ export const Planner = () => {
                     onEdit={edit}
                     onExport={() => exportPlans([plan])}
                     onShare={SYNC_URL ? () => startSharing(plan) : undefined}
-                    onDelete={() => remove(plan)}
+                    onDelete={() => void remove(plan)}
                 />
             </>
         );

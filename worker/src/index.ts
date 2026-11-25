@@ -11,7 +11,8 @@
 // PUT /shared                 { version, plan } -> { version, plan, picture }, or 409 with the newest
 //                                                  (version 0 makes the plan, the first time)
 // PUT /shared/picture         a JPEG or PNG     -> { picture }: the trip's link-preview picture
-// GET|PUT /plans/<id>[/picture]  Bearer <secret>: the same, for plans shared before codes
+// DELETE /shared                                -> { deleted: true }: the plan and its picture, for everyone
+// GET|PUT|DELETE /plans/<id>[/picture]  Bearer <secret>: the same, for plans shared before codes
 // GET /<code>  (or /p/<code>, /p/<id>.<secret>) -> the share link: a page with link-preview tags
 //                                                  that goes on to the planner (see preview.ts)
 // GET /<code>/picture                           -> the trip's picture, for that page
@@ -21,6 +22,7 @@ import { previewPage } from "./preview";
 export interface RoomStorage {
     get<T>(key: string): Promise<T | undefined>;
     put(key: string, value: unknown): Promise<void>;
+    delete(keys: string[]): Promise<unknown>;
 }
 
 export interface RoomState {
@@ -83,7 +85,7 @@ const corsHeaders = (origin: string | null): Record<string, string> =>
     origin
         ? {
               "Access-Control-Allow-Origin": origin,
-              "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+              "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
               "Access-Control-Allow-Headers": "Authorization, Content-Type",
               "Access-Control-Max-Age": "86400",
               Vary: "Origin",
@@ -181,7 +183,7 @@ export const handle = async (request: Request, env: Env): Promise<Response> => {
     const old = OLD_API.exec(path);
     const api = API.exec(path);
     if (!old && !api) return json({ error: "not found" }, 404, origin);
-    if (request.method !== "GET" && request.method !== "PUT") return json({ error: "method not allowed" }, 405, origin);
+    if (!["GET", "PUT", "DELETE"].includes(request.method)) return json({ error: "method not allowed" }, 405, origin);
     const token = TOKEN.exec(request.headers.get("Authorization") ?? "")?.[1];
     // Old plans have a long secret, new ones a code.
     if (!token || (old ? token.length !== 64 : token.length === 64)) return json({ error: "missing or bad token" }, 401, origin);
@@ -227,7 +229,13 @@ export class PlanRoom {
         const saved = await this.state.storage.get<Room>("room");
         if (saved && saved.secret !== secret) return json({ error: "wrong link" }, 403);
         const reply = (r: Room, status: number) => json({ version: r.version, plan: r.plan, ...(r.picture ? { picture: r.picture } : {}) }, status);
-        if (!body) return saved ? reply(saved, 200) : json({ error: "no such plan" }, 404);
+        if (!saved && !body) return json({ error: "no such plan" }, 404);
+        if (request.method === "DELETE") {
+            // Gone for everyone: the link stops working, and other phones keep it as their own.
+            await this.state.storage.delete(["room", "picture"]);
+            return json({ deleted: true }, 200);
+        }
+        if (!body) return reply(saved!, 200);
 
         const current = saved?.version ?? 0;
         if (body.version !== current) return saved ? reply(saved, 409) : json({ error: "no such plan" }, 404);

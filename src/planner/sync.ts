@@ -38,6 +38,13 @@ interface Saved {
     plan: PlanContent;
 }
 
+/** The plan isn't on the server: someone deleted it for everyone (or it never got there). */
+export class Gone extends Error {
+    constructor() {
+        super("this shared plan isn't on the server any more");
+    }
+}
+
 class Conflict extends Error {
     constructor(readonly saved: Saved) {
         super("someone else saved first");
@@ -49,7 +56,7 @@ const address = (id: string | undefined, secret: string) => (isOldSecret(secret)
 
 const check = async (res: Response) => {
     if (res.status === 409) throw new Conflict(await res.json());
-    if (res.status === 404) throw new Error("this shared plan isn't on the server any more");
+    if (res.status === 404) throw new Gone();
     if (res.status === 403) throw new Error("this link doesn't open that plan");
     if (!res.ok) throw new Error(`the sync server said ${res.status}`);
     return res.json();
@@ -64,6 +71,13 @@ const request = async (id: string | undefined, secret: string, body?: { version:
             cache: "no-store",
         })
     );
+
+/** Deletes a shared plan from the server, for everyone with its link. */
+export const unshare = async (p: Plan): Promise<void> => {
+    if (!p.shared) return;
+    const res = await fetch(address(p.id, p.shared.secret), { method: "DELETE", headers: { Authorization: `Bearer ${p.shared.secret}` } });
+    if (res.status !== 404) await check(res);
+};
 
 /** Sends the trip's link-preview picture (see picture.ts). */
 export const sendPicture = async (p: Plan, picture: Blob): Promise<void> => {

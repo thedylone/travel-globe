@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeServer } from "../../worker/src/fake";
 import { content, merge, type PlanContent } from "./merge";
 import { emptyPlan, needsExport, newDay, newPlace, type Plan } from "./plan";
-import { join, readJoin, settle, share, shareLink, sync } from "./sync";
+import { Gone, join, readJoin, settle, share, shareLink, sync, unshare } from "./sync";
 
 const base = (): PlanContent => {
     const p = emptyPlan(1000);
@@ -129,6 +129,17 @@ describe("syncing shared plans", () => {
         expect(find(settled, "tokyo")?.note).toBe("typed meanwhile");
         expect(settled.shared?.version).toBe(theirs.shared?.version);
         expect(settle(sent, sent, result)).toEqual({ ...result, exported: 5 });
+    });
+
+    it("deletes a shared plan for everyone", async () => {
+        const mine = await share(phone());
+        const hers = await join({ secret: mine.shared!.secret }, []);
+        await unshare(mine);
+        await expect(sync(hers)).rejects.toBeInstanceOf(Gone);
+        await expect(sync({ ...hers, title: "edited meanwhile" })).rejects.toBeInstanceOf(Gone);
+        await expect(join({ secret: mine.shared!.secret }, [])).rejects.toBeInstanceOf(Gone);
+        // Deleting it again is fine.
+        await unshare(mine);
     });
 
     it("says when a link is wrong", async () => {

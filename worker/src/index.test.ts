@@ -131,5 +131,12 @@ describe("planner sync worker", () => {
         expect(pic.headers.get("Content-Type")).toBe("image/jpeg");
         expect(new Uint8Array(await pic.arrayBuffer())).toEqual(jpeg);
         expect((await server(new Request(`https://sync.example.com/p/Zk3f9QmT2aLp7RvB/picture`))).status).toBe(404);
+
+        // Only the code deletes it; then it's gone, picture and all.
+        expect((await api("DELETE", "", undefined, "", "Zk3f9QmT2aLp7RvB")).status).toBe(404);
+        expect(await (await api("DELETE")).json()).toEqual({ deleted: true });
+        expect((await api("GET")).status).toBe(404);
+        expect((await server(new Request(`https://sync.example.com/${CODE}/picture`))).status).toBe(404);
+        expect(await page()).not.toContain("kyoto");
     });
 });

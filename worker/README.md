@@ -53,6 +53,7 @@ You need a free Cloudflare account and Node.js. Run these from the `worker/` fol
 GET /shared                    -> { version, plan, picture? }
 PUT /shared  { version, plan } -> { version, plan, picture? }; 409 with the newest if `version` isn't it
 PUT /shared/picture  (JPEG/PNG) -> { picture }: the trip's link-preview picture
+DELETE /shared                 -> { deleted: true }: the plan and its picture, gone for everyone
 GET /<code>                    -> the share link's page (below)
 GET /<code>/picture            -> the trip's picture
 ```
@@ -81,6 +82,12 @@ links short. The deploy makes the domain and its DNS record, as long as the doma
 another domain, change the pattern. The workers.dev address stays on too (`workers_dev = true`), so links made
 with it keep working. Once it's deployed, point `sync:` in `site.yaml` at the new address. Remove `routes` to do
 without.
+
+## Deleting shared plans
+
+Deleting a shared plan in the planner asks whether to delete it for everyone with the link too. That deletes it
+from the server, and the link stops working; other phones keep their copy, no longer shared, and say so. There's
+no list of plans to delete from on Cloudflare: each plan's room is named after a hash of its code.
 
 ## Limits
 
