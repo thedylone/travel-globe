@@ -186,7 +186,8 @@ export const renderTripSvg = (
 
 /** What the picture shows, in short: when it changes, the picture is drawn and sent again. */
 export const pictureKey = (p: Plan) => {
-    const shown = JSON.stringify([p.title.trim(), p.start, p.days.length, p.country, placeNames(p.days).slice(0, 2), stops(p).map((s) => [s.name, s.lat.toFixed(3), s.lng.toFixed(3)])]);
+    // The first item is the picture's design: changing it redraws every shared trip's picture.
+    const shown = JSON.stringify(["map", p.title.trim(), p.start, p.days.length, p.country, placeNames(p.days).slice(0, 2), stops(p).map((s) => [s.name, s.lat.toFixed(3), s.lng.toFixed(3)])]);
     // FNV-1a: enough to tell pictures apart.
     let h = 0x811c9dc5;
     for (let i = 0; i < shown.length; i++) h = Math.imul(h ^ shown.charCodeAt(i), 0x01000193);
