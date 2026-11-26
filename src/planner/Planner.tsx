@@ -22,6 +22,7 @@ import {
     upgrade,
 } from "./plan";
 import { PlanMap } from "./PlanMap";
+import { PHONE, useSheet, useSidebar } from "./sheet";
 import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
 import { pictureKey, tripPicture } from "./picture";
@@ -427,6 +428,11 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
     const [focus, setFocus] = useState<number>();
     const [active, setActive] = useState<string>();
     const set = (patch: Partial<Plan>, group?: string) => onEdit({ ...plan, ...patch }, group);
+    const root = useRef<HTMLDivElement>(null);
+    const mapWrap = useRef<HTMLDivElement>(null);
+    const side = useRef<HTMLDivElement>(null);
+    const [sheet, showSheet] = useSheet(root, mapWrap, side);
+    const [sidebar, toggleSidebar] = useSidebar();
 
     // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes, everywhere but the search boxes,
     // which keep the browser's own undo for what's being typed in them.
@@ -477,6 +483,8 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
     /** Selects a place from the map: shows its day and scrolls to it. */
     const select = (key: string) => {
         open(key);
+        // On a phone with the panel pulled down, bring it back up to show the place.
+        if (sheet === "map" && matchMedia(PHONE).matches) showSheet("split");
         requestAnimationFrame(() => document.querySelector(`[data-place="${key}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
     };
     /** The last place with a location before day `day`'s end, to search near. */
@@ -516,37 +524,55 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
     );
 
     return (
-        <div className="plan">
-            <div className="plan-map-wrap">
+        <div className="plan" ref={root} data-sheet={sheet} data-sidebar={sidebar ? "shown" : "hidden"}>
+            <div className="plan-map-wrap" ref={mapWrap}>
                 <PlanMap plan={plan} focus={focus} active={active} onSelect={select} />
+                <button
+                    className="plan-side-toggle"
+                    onClick={toggleSidebar}
+                    aria-expanded={sidebar}
+                    aria-label={sidebar ? "Hide the trip panel" : "Show the trip panel"}
+                    title={sidebar ? "Hide the trip panel" : "Show the trip panel"}
+                >
+                    <SidebarIcon />
+                    {!sidebar && <span>{plan.title || "Trip"}</span>}
+                </button>
                 {focus !== undefined && (
                     <button className="plan-map-all" onClick={() => setFocus(undefined)}>
                         All days
                     </button>
                 )}
             </div>
-            <div className="plan-side">
-                <header className="plan-head">
-                    <span className="plan-head-nav">
-                        <button className="link" onClick={() => go()}>
-                            ‹ Plans
-                        </button>
-                        <span className="plan-undo">
-                            <button className="icon" disabled={!canUndo} onClick={onUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
-                                <UndoIcon />
+            <div className="plan-side" ref={side}>
+                <div className="plan-top">
+                    <button
+                        className="plan-grab"
+                        onClick={() => showSheet(sheet === "map" ? "split" : "map")}
+                        aria-label={sheet === "map" ? "Show the trip" : "Show more of the map"}
+                        aria-expanded={sheet === "split"}
+                    />
+                    <header className="plan-head">
+                        <span className="plan-head-nav">
+                            <button className="link" onClick={() => go()}>
+                                ‹ Plans
                             </button>
-                            <button className="icon" disabled={!canRedo} onClick={onRedo} aria-label="Redo" title="Redo (Shift+Ctrl+Z)">
-                                <UndoIcon redo />
+                            <span className="plan-undo">
+                                <button className="icon" disabled={!canUndo} onClick={onUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
+                                    <UndoIcon />
+                                </button>
+                                <button className="icon" disabled={!canRedo} onClick={onRedo} aria-label="Redo" title="Redo (Shift+Ctrl+Z)">
+                                    <UndoIcon redo />
+                                </button>
+                            </span>
+                        </span>
+                        <span className="plan-head-actions">
+                            {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
+                            <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
+                                Export
                             </button>
                         </span>
-                    </span>
-                    <span className="plan-head-actions">
-                        {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
-                        <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
-                            Export
-                        </button>
-                    </span>
-                </header>
+                    </header>
+                </div>
                 {plan.shared && <p className={`muted plan-sync${typeof syncing === "object" ? " failed" : ""}`}>{syncLine(plan, syncing)}</p>}
                 <input className="plan-title" value={plan.title} placeholder="Trip title" onChange={(e) => set({ title: e.target.value }, "title")} />
                 <div className="plan-dates">
@@ -651,6 +677,14 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
         </div>
     );
 };
+
+/** A window with a panel down its left side. */
+const SidebarIcon = () => (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <rect x="3" y="4.5" width="18" height="15" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M9.5 4.5v15" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+);
 
 /** A curved arrow back (or, for redo, forward). */
 const UndoIcon = ({ redo }: { redo?: boolean }) => (
