@@ -16,6 +16,8 @@
 // GET /<code>  (or /p/<code>, /p/<id>.<secret>) -> the share link: a page with link-preview tags
 //                                                  that goes on to the planner (see preview.ts)
 // GET /<code>/picture                           -> the trip's picture, for that page
+// POST /mcp                                     -> the connector for AI agents (see mcp.ts)
+import { handleMcp } from "./mcp";
 import { previewPage } from "./preview";
 
 /** The bits of the Durable Object storage this uses. */
@@ -178,6 +180,12 @@ export const handle = async (request: Request, env: Env): Promise<Response> => {
 
     const origin = allowedOrigin(request, env);
     if (origin === false) return json({ error: "origin not allowed" }, 403);
+    // Agents aren't browsers, so it has no CORS; a page elsewhere can't use it.
+    if (path === "/mcp") {
+        const ask = (token: string, id: string | undefined, body?: { version: number; plan: unknown }) =>
+            askRoom(env, "plan", token, id, body && new Request("https://room.internal/", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }));
+        return handleMcp(request, { ask, origin: new URL(request.url).origin });
+    }
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
 
     const old = OLD_API.exec(path);

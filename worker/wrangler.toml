@@ -1,6 +1,6 @@
 # The trip planner's sync server: shares a plan between phones. See worker/README.md.
 name = "planner-sync"
-main = "src/index.ts"
+main = "src/main.ts"
 compatibility_date = "2026-11-01"
 
 # Its own address, for short share links (plan.thedylone.com/<code>). The deploy makes the domain and
