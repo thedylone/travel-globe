@@ -25,6 +25,7 @@ import { PlanMap } from "./PlanMap";
 import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
 import { pictureKey, tripPicture } from "./picture";
+import { emptyHistory, type History, record, redo, undo } from "./history";
 import { Gone, join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL, unshare } from "./sync";
 import { shareFontDataUrl } from "../lib/rasterize";
 
@@ -208,10 +209,32 @@ export const Planner = () => {
         }
     };
 
-    const edit = (p: Plan) => {
+    // Undo and redo, per plan, for this visit (see history.ts).
+    const histories = useRef(new Map<string, History>());
+    const [, setHistoryShown] = useState(0);
+    const setHistory = (id: string, h: History) => {
+        histories.current.set(id, h);
+        setHistoryShown((n) => n + 1);
+    };
+    const save = (p: Plan) => {
         const next = { ...p, updated: Date.now() };
         keep(next);
         syncSoon(next);
+    };
+    /** Saves an edit; `group` names the field being typed in, so a burst of typing undoes as one. */
+    const edit = (p: Plan, group?: string) => {
+        const before = current.current.find((x) => x.id === p.id);
+        if (before) setHistory(p.id, record(histories.current.get(p.id) ?? emptyHistory(), before, p, group));
+        save(p);
+    };
+    const travel = (id: string, back: boolean) => {
+        const now = current.current.find((x) => x.id === id);
+        const h = histories.current.get(id);
+        if (!now || !h) return;
+        const done = back ? undo(h, now) : redo(h, now);
+        if (!done) return setHistory(id, { undo: back ? [] : h.undo, redo: back ? h.redo : [] });
+        setHistory(id, done.history);
+        save(done.plan);
     };
     const startSharing = async (p: Plan) => {
         if (!p.shared) {
@@ -293,6 +316,10 @@ export const Planner = () => {
                     plan={plan}
                     syncing={syncing[plan.id]}
                     onEdit={edit}
+                    canUndo={(histories.current.get(plan.id)?.undo.length ?? 0) > 0}
+                    canRedo={(histories.current.get(plan.id)?.redo.length ?? 0) > 0}
+                    onUndo={() => travel(plan.id, true)}
+                    onRedo={() => travel(plan.id, false)}
                     onExport={() => exportPlans([plan])}
                     onShare={SYNC_URL ? () => startSharing(plan) : undefined}
                     onDelete={() => void remove(plan)}
@@ -371,7 +398,11 @@ export const Planner = () => {
 interface EditorProps {
     plan: Plan;
     syncing?: SyncState;
-    onEdit: (p: Plan) => void;
+    onEdit: (p: Plan, group?: string) => void;
+    canUndo: boolean;
+    canRedo: boolean;
+    onUndo: () => void;
+    onRedo: () => void;
     onExport: () => void;
     /** Shares the plan, or sends its link again; unset when the site has no sync server. */
     onShare?: () => void;
@@ -392,16 +423,34 @@ interface At {
     i: number;
 }
 
-const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: EditorProps) => {
+const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, onExport, onShare, onDelete }: EditorProps) => {
     const [focus, setFocus] = useState<number>();
     const [active, setActive] = useState<string>();
-    const set = (patch: Partial<Plan>) => onEdit({ ...plan, ...patch });
+    const set = (patch: Partial<Plan>, group?: string) => onEdit({ ...plan, ...patch }, group);
+
+    // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes, everywhere but the search boxes,
+    // which keep the browser's own undo for what's being typed in them.
+    const keys = useRef({ onUndo, onRedo });
+    keys.current = { onUndo, onRedo };
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+            const k = e.key.toLowerCase();
+            const back = k === "z" && !e.shiftKey;
+            if (!back && !(k === "z" && e.shiftKey) && !(k === "y" && e.ctrlKey && !e.metaKey)) return;
+            if ((e.target as HTMLElement | null)?.closest?.("[data-own-undo]")) return;
+            e.preventDefault();
+            (back ? keys.current.onUndo : keys.current.onRedo)();
+        };
+        addEventListener("keydown", onKey);
+        return () => removeEventListener("keydown", onKey);
+    }, []);
 
     const list = (day: number) => (day < 0 ? plan.ideas : plan.days[day].places);
     /** The plan with one list of places changed. */
     const withList = (p: Plan, day: number, places: PlanPlace[]): Plan =>
         day < 0 ? { ...p, ideas: places } : { ...p, days: p.days.map((d, j) => (j === day ? { ...d, places } : d)) };
-    const editList = (day: number, change: (ps: PlanPlace[]) => PlanPlace[]) => onEdit(withList(plan, day, change(list(day))));
+    const editList = (day: number, change: (ps: PlanPlace[]) => PlanPlace[], group?: string) => onEdit(withList(plan, day, change(list(day))), group);
     const add = (day: number, x: PlanPlace) => {
         editList(day, (ps) => [...ps, x]);
         setActive(x.key);
@@ -451,7 +500,13 @@ const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: Edit
                     day={day}
                     days={days}
                     onOpen={() => open(x.key === active ? undefined : x.key)}
-                    onChange={(patch) => editList(day, (ps) => ps.map((p) => (p.key === x.key ? { ...p, ...patch } : p)))}
+                    onChange={(patch, field) =>
+                        editList(
+                            day,
+                            (ps) => ps.map((p) => (p.key === x.key ? { ...p, ...patch } : p)),
+                            field && `${field}:${x.key}`
+                        )
+                    }
                     onMove={(by) => editList(day, (ps) => move(ps, i, i + by))}
                     onMoveTo={(to) => moveTo({ day, i }, to)}
                     onRemove={() => editList(day, (ps) => ps.filter((p) => p.key !== x.key))}
@@ -472,9 +527,19 @@ const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: Edit
             </div>
             <div className="plan-side">
                 <header className="plan-head">
-                    <button className="link" onClick={() => go()}>
-                        ‹ Plans
-                    </button>
+                    <span className="plan-head-nav">
+                        <button className="link" onClick={() => go()}>
+                            ‹ Plans
+                        </button>
+                        <span className="plan-undo">
+                            <button className="icon" disabled={!canUndo} onClick={onUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
+                                <UndoIcon />
+                            </button>
+                            <button className="icon" disabled={!canRedo} onClick={onRedo} aria-label="Redo" title="Redo (Shift+Ctrl+Z)">
+                                <UndoIcon redo />
+                            </button>
+                        </span>
+                    </span>
                     <span className="plan-head-actions">
                         {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
                         <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
@@ -483,7 +548,7 @@ const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: Edit
                     </span>
                 </header>
                 {plan.shared && <p className={`muted plan-sync${typeof syncing === "object" ? " failed" : ""}`}>{syncLine(plan, syncing)}</p>}
-                <input className="plan-title" value={plan.title} placeholder="Trip title" onChange={(e) => set({ title: e.target.value })} />
+                <input className="plan-title" value={plan.title} placeholder="Trip title" onChange={(e) => set({ title: e.target.value }, "title")} />
                 <div className="plan-dates">
                     <label>
                         Start
@@ -521,15 +586,15 @@ const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: Edit
                     <div className="plan-fields">
                         <label>
                             From
-                            <input list="planner-bases" value={plan.from} placeholder="home, or a place" onChange={(e) => set({ from: e.target.value })} />
+                            <input list="planner-bases" value={plan.from} placeholder="home, or a place" onChange={(e) => set({ from: e.target.value }, "from")} />
                         </label>
                         <label>
                             To
-                            <input list="planner-bases" value={plan.to} placeholder="if not where it started" onChange={(e) => set({ to: e.target.value })} />
+                            <input list="planner-bases" value={plan.to} placeholder="if not where it started" onChange={(e) => set({ to: e.target.value }, "to")} />
                         </label>
                         <label>
                             Country codes (narrow the search)
-                            <input value={plan.country} placeholder="e.g. jp or gb,ie" autoCapitalize="off" onChange={(e) => set({ country: e.target.value })} />
+                            <input value={plan.country} placeholder="e.g. jp or gb,ie" autoCapitalize="off" onChange={(e) => set({ country: e.target.value }, "country")} />
                         </label>
                         <datalist id="planner-bases">
                             {bases.map((b) => (
@@ -587,6 +652,14 @@ const PlanEditor = ({ plan, syncing, onEdit, onExport, onShare, onDelete }: Edit
     );
 };
 
+/** A curved arrow back (or, for redo, forward). */
+const UndoIcon = ({ redo }: { redo?: boolean }) => (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style={redo ? { transform: "scaleX(-1)" } : undefined}>
+        <path d="M9 14 4 9l5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
 interface PlaceProps {
     place: PlanPlace;
     /** Its number in the day, and the day's colour; none in Places to visit. */
@@ -598,7 +671,8 @@ interface PlaceProps {
     day: number;
     days: { value: number; label: string }[];
     onOpen: () => void;
-    onChange: (patch: Partial<PlanPlace>) => void;
+    /** `field` is set for typing, so a burst of it undoes as one. */
+    onChange: (patch: Partial<PlanPlace>, field?: string) => void;
     onMove: (by: number) => void;
     onMoveTo: (day: number) => void;
     onRemove: () => void;
@@ -625,11 +699,11 @@ const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onCh
                     placeholder="Notes: what to see, bookings, times…"
                     rows={Math.min(8, place.note.split("\n").length + 1)}
                     autoFocus={!place.note}
-                    onChange={(e) => onChange({ note: e.target.value })}
+                    onChange={(e) => onChange({ note: e.target.value }, "note")}
                 />
                 <label>
                     Label on the globe
-                    <input value={place.name} placeholder={place.place} onChange={(e) => onChange({ name: e.target.value })} />
+                    <input value={place.name} placeholder={place.place} onChange={(e) => onChange({ name: e.target.value }, "name")} />
                 </label>
                 <div className="plan-place-actions">
                     <select value={day} aria-label="Day" onChange={(e) => onMoveTo(Number(e.target.value))}>
@@ -719,6 +793,7 @@ const AddPlace = ({ country, near, placeholder, onAdd }: AddProps) => {
         <div className="plan-add">
             <input
                 ref={input}
+                data-own-undo
                 type="search"
                 enterKeyHint="search"
                 value={q}
