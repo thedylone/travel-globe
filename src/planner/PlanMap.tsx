@@ -33,7 +33,22 @@ export const PlanMap = ({ plan, focus, active, onSelect }: Props) => {
         L.control.zoom({ position: "bottomright" }).addTo(m);
         layers.current = L.layerGroup().addTo(m);
         map.current = m;
-        const resize = new ResizeObserver(() => m.invalidateSize());
+        // A new map (React remounts it in development) hasn't been fitted to anything yet.
+        fitted.current = "";
+        // When the panel slides away or is dragged, keep the map still on the screen and reveal
+        // (or cover) its edges, rather than letting it shift around its centre.
+        let was = box.current!.getBoundingClientRect();
+        const resize = new ResizeObserver(() => {
+            const now = box.current!.getBoundingClientRect();
+            // The first call comes straight after observing, with nothing changed; resizing then
+            // would cut short the zoom that fits the plan.
+            if (now.width === was.width && now.height === was.height && now.left === was.left && now.top === was.top) return;
+            m.invalidateSize({ pan: false });
+            const dx = Math.round(now.left - was.left);
+            const dy = Math.round(now.top - was.top);
+            if (dx || dy) m.panBy([dx, dy], { animate: false });
+            was = now;
+        });
         resize.observe(box.current!);
         return () => {
             resize.disconnect();

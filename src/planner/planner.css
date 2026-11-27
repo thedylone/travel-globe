@@ -185,13 +185,46 @@ body:has(.plan) {
 }
 
 /* Stays at the top of the list while it scrolls, so undo is always in reach. */
-.plan-side .plan-head {
+.plan-top {
     position: sticky;
     top: -4px;
     z-index: 5;
     margin: -4px -8px 0;
     padding: 4px 8px;
     background: var(--bg);
+}
+
+/* The pill to drag (or tap) the panel down to show more of the map; only on a phone. */
+.plan-grab {
+    display: none;
+}
+
+@media (max-width: 899px) {
+    .plan-grab {
+        display: block;
+        width: 100%;
+        min-height: 0;
+        height: 20px;
+        margin: 0 0 -6px;
+        padding: 0;
+        border: none;
+        border-radius: 0;
+        background: none;
+        touch-action: none;
+    }
+    .plan-grab::before {
+        content: "";
+        display: block;
+        width: 44px;
+        height: 5px;
+        margin: 0 auto;
+        border-radius: 999px;
+        background: var(--text-muted);
+        opacity: 0.45;
+    }
+    .plan-grab:active:not(:disabled) {
+        background: none;
+    }
 }
 
 .plan-head-nav,
@@ -314,6 +347,11 @@ body:has(.plan) {
 :root {
     --idea: #9a8e7f;
     --map-h: 38vh;
+    /* How much of the panel still shows when it's pulled down on a phone: the handle and header. */
+    --peek: calc(80px + env(safe-area-inset-bottom));
+    /* The sidebar's width on a wide screen. */
+    --side-w: 460px;
+    --sheet-ease: cubic-bezier(0.22, 0.8, 0.24, 1);
 }
 
 .plan {
@@ -328,6 +366,16 @@ body:has(.plan) {
     flex: none;
     height: calc(var(--map-h) + env(safe-area-inset-top));
     border-bottom: var(--outline);
+    transition: height 0.32s var(--sheet-ease);
+}
+
+/* Pulled down: the map takes all but the panel's header. */
+.plan[data-sheet="map"] .plan-map-wrap {
+    height: calc(100% - var(--peek));
+}
+
+.plan[data-sheet="map"] .plan-side {
+    overflow: hidden;
 }
 
 .plan-map {
@@ -351,8 +399,14 @@ body:has(.plan) {
     box-shadow: var(--pop);
 }
 
+/* Hides and shows the sidebar on a wide screen; on a phone the panel is dragged instead. */
+.plan-side-toggle {
+    display: none;
+}
+
 .plan-side {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
@@ -364,15 +418,59 @@ body:has(.plan) {
     .plan {
         flex-direction: row-reverse;
     }
-    .plan-map-wrap {
+    .plan-map-wrap,
+    .plan[data-sheet="map"] .plan-map-wrap {
         flex: 1;
         height: auto;
         border-bottom: none;
         border-left: var(--outline);
+        transition: none;
     }
-    .plan-side {
+    .plan-side,
+    .plan[data-sheet="map"] .plan-side {
         flex: none;
-        width: 460px;
+        width: var(--side-w);
+        overflow-y: auto;
+        transition:
+            margin-left 0.36s var(--sheet-ease),
+            visibility 0s;
+    }
+    /* Hidden: it slides off to the left and the map grows into its place. */
+    .plan[data-sidebar="hidden"] .plan-side {
+        margin-left: calc(-1 * var(--side-w));
+        visibility: hidden;
+        transition:
+            margin-left 0.36s var(--sheet-ease),
+            visibility 0s 0.36s;
+    }
+    .plan[data-sidebar="hidden"] .plan-map-wrap {
+        border-left: none;
+    }
+    .plan-side-toggle {
+        display: inline-flex;
+        position: absolute;
+        z-index: 1000;
+        top: 10px;
+        left: 10px;
+        min-height: 40px;
+        max-width: calc(100% - 140px);
+        padding: 4px 12px 4px 10px;
+        border: var(--outline);
+        box-shadow: var(--pop);
+    }
+    .plan-side-toggle span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-family: var(--display);
+        font-weight: 600;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .plan-map-wrap,
+    .plan-side,
+    .plan[data-sidebar="hidden"] .plan-side {
+        transition: none !important;
     }
 }
 
