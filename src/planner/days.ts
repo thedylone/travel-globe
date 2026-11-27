@@ -1,6 +1,6 @@
 // Making plans, days and places, and the trip's dates: the bits of plan.ts with no imports, so the
 // sync server (worker/) can edit plans the same way the planner does.
-import type { Plan, PlanDay, PlanPlace } from "./plan";
+import type { Booking, Plan, PlanDay, PlanPlace } from "./plan";
 
 export const newKey = () => crypto.randomUUID();
 
@@ -9,6 +9,20 @@ export const newPlace = (patch: Partial<PlanPlace> = {}): PlanPlace => ({
     place: "",
     name: "",
     side: false,
+    note: "",
+    ...patch,
+});
+
+export const newBooking = (kind: Booking["kind"], patch: Partial<Booking> = {}): Booking => ({
+    key: newKey(),
+    kind,
+    name: "",
+    start: "",
+    end: "",
+    time: "",
+    arrive: "",
+    from: "",
+    to: "",
     note: "",
     ...patch,
 });
@@ -64,3 +78,40 @@ export const setDates = (p: Plan, start: string, end: string): Plan => {
     };
 };
 
+
+const MAX_DAYS = 90;
+
+/**
+ * What's booked on day `i`: the hotel slept in the night before (`morning`), the flights that day,
+ * and the hotel for that night (`night`). Nothing on a trip without dates.
+ */
+export const bookingsOn = (p: Pick<Plan, "start" | "bookings">, i: number) => {
+    const d = dayDate(p, i);
+    const all = p.bookings ?? [];
+    const hotels = all.filter((b) => b.kind === "hotel" && ISO.test(b.start) && ISO.test(b.end) && b.end > b.start);
+    return {
+        morning: d ? hotels.filter((b) => b.start < d && d <= b.end) : [],
+        flights: d ? all.filter((b) => b.kind === "flight" && b.start === d) : [],
+        night: d ? hotels.filter((b) => b.start <= d && d < b.end) : [],
+    };
+};
+
+/**
+ * The trip's days grown to cover every booking's dates: days are added at the start (so the days
+ * already planned keep their dates) or the end. A trip without dates starts on the first booking.
+ */
+export const coverBookings = (p: Plan): Plan => {
+    const dates = (p.bookings ?? []).flatMap((b) => [b.start, b.end]).filter((d) => ISO.test(d)).sort();
+    if (!dates.length) return p;
+    const [first, last] = [dates[0], dates[dates.length - 1]];
+    if (!ISO.test(p.start)) {
+        const count = Math.min(Math.max(p.days.length, daysBetween(first, last) + 1), MAX_DAYS);
+        return { ...p, start: first, days: [...p.days, ...Array.from({ length: count - p.days.length }, () => newDay())] };
+    }
+    const before = Math.max(0, Math.min(daysBetween(first, p.start), MAX_DAYS - p.days.length));
+    const start = addDays(p.start, -before);
+    const days = [...Array.from({ length: before }, () => newDay()), ...p.days];
+    const after = Math.max(0, Math.min(daysBetween(addDays(start, days.length - 1), last), MAX_DAYS - days.length));
+    if (!before && !after) return p;
+    return { ...p, start, days: [...days, ...Array.from({ length: after }, () => newDay())] };
+};

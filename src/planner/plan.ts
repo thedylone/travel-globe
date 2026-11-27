@@ -38,12 +38,41 @@ export interface Plan {
     days: PlanDay[];
     /** Places you might go, not on a day yet. Not exported. */
     ideas: PlanPlace[];
+    /** Flights and hotels. Unset on plans from before the planner had them. Not exported. */
+    bookings?: Booking[];
     /** Milliseconds since 1970. `exported` is unset until the plan is first exported. */
     created: number;
     updated: number;
     exported?: number;
     /** Set once the plan is shared, to sync it with everyone who has its link (see sync.ts). */
     shared?: Shared;
+}
+
+/**
+ * A flight or a hotel. A hotel with dates shows on every day it covers (see `bookingsOn`), and
+ * the trip's dates grow to cover it.
+ */
+export interface Booking {
+    key: string;
+    kind: "flight" | "hotel";
+    /** A flight's number (e.g. "BA 7"), or the hotel's name. */
+    name: string;
+    /** A flight's day, or the hotel's check-in, "YYYY-MM-DD"; "" if not known yet. */
+    start: string;
+    /** The hotel's check-out; for a flight, the day it lands if later, or "". */
+    end: string;
+    /** A flight's departure and arrival times, "HH:MM", or "". */
+    time: string;
+    arrive: string;
+    /** Where a flight leaves from and goes to, e.g. "LHR" or "London Heathrow". */
+    from: string;
+    to: string;
+    /** Where the hotel is, from the search. */
+    lat?: number;
+    lng?: number;
+    address?: string;
+    /** Confirmation number, terminal, check-in time… */
+    note: string;
 }
 
 export interface Shared {
@@ -58,7 +87,7 @@ export interface Shared {
     picture?: string;
 }
 
-export { addDays, dayDate, daysBetween, emptyPlan, endDate, newDay, newPlace, setDates } from "./days";
+export { addDays, bookingsOn, coverBookings, dayDate, daysBetween, emptyPlan, endDate, newBooking, newDay, newPlace, setDates } from "./days";
 import { dayDate, daysBetween, emptyPlan, ISO, newDay, newPlace } from "./days";
 
 /** Every place on a day, with where it is in the plan. */

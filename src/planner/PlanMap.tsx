@@ -1,7 +1,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef } from "react";
-import { dayColor, type Plan } from "./plan";
+import { bookingsOn, dayColor, type Plan } from "./plan";
 
 interface Props {
     plan: Plan;
@@ -72,10 +72,13 @@ export const PlanMap = ({ plan, focus, active, onSelect }: Props) => {
                 .on("click", () => latest.current(key))
                 .addTo(group);
         };
+        const where = (b: { lat?: number; lng?: number }): L.LatLngTuple[] => (b.lat !== undefined && b.lng !== undefined ? [[b.lat, b.lng]] : []);
         plan.days.forEach((d, day) => {
             const color = dayColor(day);
             const dim = focus !== undefined && focus !== day;
-            const route: L.LatLngTuple[] = [];
+            // Each day goes from the hotel slept in the night before to that night's.
+            const booked = bookingsOn(plan, day);
+            const route: L.LatLngTuple[] = booked.morning.slice(0, 1).flatMap(where);
             d.places.forEach((x, i) => {
                 if (x.lat === undefined || x.lng === undefined) return;
                 const at: L.LatLngTuple = [x.lat, x.lng];
@@ -83,10 +86,20 @@ export const PlanMap = ({ plan, focus, active, onSelect }: Props) => {
                 if (!dim) shown.push(at);
                 pin(at, String(i + 1), color, x.key, x.name || x.place, dim);
             });
+            const night = booked.night.slice(0, 1).flatMap(where);
+            route.push(...night);
+            if (!dim) shown.push(...route);
             if (route.length > 1) {
                 L.polyline(route, { color, weight: 3, opacity: dim ? 0.25 : 0.85, dashArray: "1 7", lineCap: "round", interactive: false }).addTo(group);
             }
         });
+        for (const b of plan.bookings ?? []) {
+            if (b.kind !== "hotel" || b.lat === undefined || b.lng === undefined) continue;
+            const stay = plan.days.map((_, i) => i).filter((i) => bookingsOn(plan, i).night.includes(b));
+            const dim = focus !== undefined && !stay.includes(focus) && !bookingsOn(plan, focus).morning.includes(b);
+            pin([b.lat, b.lng], "⌂", "var(--accent)", b.key, b.name || "Hotel", dim);
+            if (focus === undefined && !stay.length) shown.push([b.lat, b.lng]);
+        }
         for (const x of plan.ideas) {
             if (x.lat === undefined || x.lng === undefined) continue;
             pin([x.lat, x.lng], "", "var(--idea)", x.key, `${x.name || x.place} (not on a day yet)`, focus !== undefined);

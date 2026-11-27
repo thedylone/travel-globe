@@ -7,8 +7,8 @@
 // as it is for a phone. An agent's edit is saved like a phone's: based on the newest version, and
 // done again on the newer one if someone saved in between. Places keep their keys, so a phone that
 // was changing the trip at the same time merges the two as it does any other edit (merge.ts).
-import { addDays, daysBetween, emptyPlan, ISO, newDay, newPlace, setDates } from "../../src/planner/days";
-import type { Plan, PlanPlace } from "../../src/planner/plan";
+import { addDays, bookingsOn, coverBookings, daysBetween, emptyPlan, ISO, newBooking, newDay, newPlace, setDates } from "../../src/planner/days";
+import type { Booking, Plan, PlanPlace } from "../../src/planner/plan";
 import { type Found, searchPlaces } from "../../src/planner/search";
 
 /** Asks a plan's room (see index.ts): GET the plan, or PUT { version, plan }. */
@@ -33,6 +33,8 @@ const INSTRUCTIONS = `Plans trips in the trip planner (travel.thedylone.com/plan
 A trip is opened by its share link (like https://plan.thedylone.com/Xk3f9QmT2aLp7RvB), which the person gets from Share in the planner; anyone with it can see and change the trip, so don't post it anywhere. Every tool but create_trip and search_places takes that link. Changes show on the person's phones within about 15 seconds while the trip is open, and merge with what they change at the same time.
 
 A trip has days, in order (day 1 is the first), each with its places in visiting order, and "places to visit" (day 0): ideas not on a day yet. With a start date, day n is start + n - 1, and the number of days sets the end date. A place has an id, which the other tools take; get_trip lists them. A side trip (side: true) is a detour from the main stop before it. Places are looked up on the map (OpenStreetMap) when added without lat/lng: check what was found, and give lat/lng (from search_places) when it's the wrong one.
+
+Flights and hotels (bookings) are kept apart from the places, each with an id. A hotel with check-in and check-out dates shows on every day of the stay (each day lists where you're staying that night), and the trip's dates grow to cover a booking's dates; don't add hotels or flights as places too.
 
 Read the trip (get_trip) before changing it, and say what you changed. Trips can't be deleted from here.`;
 
@@ -96,6 +98,30 @@ const showPlace = (x: PlanPlace) => ({
     ...(x.note ? { note: x.note } : {}),
 });
 
+const showBooking = (b: Booking) => ({
+    id: b.key,
+    kind: b.kind,
+    ...(b.name ? { name: b.name } : {}),
+    ...(b.start ? { [b.kind === "hotel" ? "check_in" : "date"]: b.start } : {}),
+    ...(b.end ? { [b.kind === "hotel" ? "check_out" : "arrive_date"]: b.end } : {}),
+    ...(b.time ? { departs: b.time } : {}),
+    ...(b.arrive ? { arrives: b.arrive } : {}),
+    ...(b.from ? { from: b.from } : {}),
+    ...(b.to ? { to: b.to } : {}),
+    ...(b.address ? { address: b.address } : {}),
+    ...(b.lat !== undefined && b.lng !== undefined ? { lat: b.lat, lng: b.lng } : {}),
+    ...(b.note ? { note: b.note } : {}),
+});
+
+/** What's booked on a day, as get_trip shows it: the night's hotel, and the day's flights. */
+const showBooked = (p: Plan, i: number) => {
+    const { night, flights } = bookingsOn(p, i);
+    return {
+        ...(night.length ? { staying: night.map((b) => b.name || "a hotel").join(", ") } : {}),
+        ...(flights.length ? { flights: flights.map((b) => [b.name, b.from && b.to ? `${b.from} → ${b.to}` : "", b.time].filter(Boolean).join(" ")) } : {}),
+    };
+};
+
 const showTrip = (p: Plan, link: string) => ({
     link,
     title: p.title,
@@ -104,8 +130,9 @@ const showTrip = (p: Plan, link: string) => ({
     ...(p.country ? { country: p.country } : {}),
     start: p.start || null,
     end: p.start ? addDays(p.start, p.days.length - 1) : null,
-    days: p.days.map((d, i) => ({ day: i + 1, ...(p.start ? { date: addDays(p.start, i) } : {}), places: d.places.map(showPlace) })),
+    days: p.days.map((d, i) => ({ day: i + 1, ...(p.start ? { date: addDays(p.start, i) } : {}), ...showBooked(p, i), places: d.places.map(showPlace) })),
     places_to_visit: p.ideas.map(showPlace),
+    flights_and_hotels: (p.bookings ?? []).map(showBooking),
 });
 
 // ---- Editing ----
@@ -160,6 +187,43 @@ const placeFields = (a: Args): Partial<PlanPlace> => {
     return out;
 };
 
+/** A booking's fields from a tool's arguments; only what was given. */
+const bookingFields = (a: Args, kind: Booking["kind"]): Partial<Booking> => {
+    const out: Partial<Booking> = {};
+    const text = (k: string, f: keyof Booking, max = 200) => {
+        const v = str(a, k, max);
+        if (v !== undefined) Object.assign(out, { [f]: v.trim() });
+    };
+    text("name", "name");
+    text("from", "from");
+    text("to", "to");
+    text("address", "address", 300);
+    const note = str(a, "note", MAX_TEXT);
+    if (note !== undefined) out.note = note;
+    const start = date(a, kind === "hotel" ? "check_in" : "date");
+    if (start !== undefined) out.start = start;
+    const end = date(a, kind === "hotel" ? "check_out" : "arrive_date");
+    if (end !== undefined) out.end = end;
+    for (const [k, f] of [["departs", "time"], ["arrives", "arrive"]] as const) {
+        const v = str(a, k, 5);
+        if (v === undefined) continue;
+        if (v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) throw new ToolError(`${k} should be a time like 09:30`);
+        out[f] = v;
+    }
+    const lat = num(a, "lat", -90, 90);
+    const lng = num(a, "lng", -180, 180);
+    if ((lat === undefined) !== (lng === undefined)) throw new ToolError("give lat and lng together");
+    if (lat !== undefined) Object.assign(out, { lat, lng });
+    return out;
+};
+
+/** A booking's dates in order, or why not. */
+const checkBooking = (b: Booking) => {
+    if (b.start && b.end && b.end < b.start) throw new ToolError(b.kind === "hotel" ? "check_out is before check_in" : "arrive_date is before date");
+    if (b.kind === "hotel" && b.start && b.end && b.end === b.start) throw new ToolError("check_out should be at least a day after check_in");
+    if (b.start && b.end && daysBetween(b.start, b.end) >= MAX_DAYS) throw new ToolError(`a trip has at most ${MAX_DAYS} days`);
+};
+
 // ---- The tools ----
 
 const LINK = { type: "string", description: "The trip's share link, e.g. https://plan.thedylone.com/Xk3f9QmT2aLp7RvB" };
@@ -183,6 +247,22 @@ const TRIP_PROPS = {
     from: { type: "string", description: "Where the trip starts from, e.g. a home city" },
     to: { type: "string", description: "Where it ends, if not back where it started" },
 };
+const BOOKING_PROPS = {
+    name: { type: "string", description: "A flight's number (e.g. \"BA 7\"), or the hotel's name (looked up on the map if no lat/lng)" },
+    check_in: { type: "string", description: "Hotel: check-in day, YYYY-MM-DD" },
+    check_out: { type: "string", description: "Hotel: check-out day, YYYY-MM-DD (the morning you leave)" },
+    date: { type: "string", description: "Flight: the day it leaves, YYYY-MM-DD" },
+    arrive_date: { type: "string", description: "Flight: the day it lands, if later" },
+    departs: { type: "string", description: "Flight: departure time, HH:MM local" },
+    arrives: { type: "string", description: "Flight: arrival time, HH:MM local" },
+    from: { type: "string", description: "Flight: where from, e.g. \"LHR\"" },
+    to: { type: "string", description: "Flight: where to, e.g. \"HND\"" },
+    address: { type: "string", description: "Hotel: a line saying where it is" },
+    lat: { type: "number", minimum: -90, maximum: 90, description: "Hotel latitude; with lng, skips the look-up" },
+    lng: { type: "number", minimum: -180, maximum: 180 },
+    note: { type: "string", description: "Booking number, terminal, check-in time…" },
+};
+const BOOKING_ID = { type: "string", description: "The flight's or hotel's id, from get_trip's flights_and_hotels" };
 const WRITE = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
 
 export const TOOLS = [
@@ -274,6 +354,32 @@ export const TOOLS = [
         description: "Moves a whole day, with its places, so it becomes day `to`. Dates stay with the positions, so its places take that day's date.",
         inputSchema: { type: "object", properties: { link: LINK, day: { type: "integer", minimum: 1 }, to: { type: "integer", minimum: 1 } }, required: ["link", "day", "to"] },
         annotations: WRITE,
+    },
+    {
+        name: "add_booking",
+        title: "Add a flight or hotel",
+        description:
+            "Records a flight or a hotel. A hotel with check_in and check_out shows on every day of the stay; the trip's dates grow to cover a booking's dates. A hotel without lat/lng is looked up on the map by name.",
+        inputSchema: {
+            type: "object",
+            properties: { link: LINK, kind: { type: "string", enum: ["flight", "hotel"] }, ...BOOKING_PROPS },
+            required: ["link", "kind", "name"],
+        },
+        annotations: WRITE,
+    },
+    {
+        name: "update_booking",
+        title: "Change a flight or hotel",
+        description: "Changes a flight's or hotel's details; only what's given. The trip's dates grow to cover new dates.",
+        inputSchema: { type: "object", properties: { link: LINK, id: BOOKING_ID, ...BOOKING_PROPS }, required: ["link", "id"] },
+        annotations: WRITE,
+    },
+    {
+        name: "remove_booking",
+        title: "Remove a flight or hotel",
+        description: "Takes a flight or hotel off the trip. The trip's days stay as they are.",
+        inputSchema: { type: "object", properties: { link: LINK, id: BOOKING_ID }, required: ["link", "id"] },
+        annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     },
     {
         name: "search_places",
@@ -550,6 +656,59 @@ export const mcpTools = (o: McpOptions) => {
                 const [d] = days.splice(day - 1, 1);
                 days.splice(to - 1, 0, d);
                 return { ...p, days };
+            });
+            return done(p, at);
+        },
+
+        add_booking: async (a) => {
+            const at = linkOf(a);
+            const kind = a.kind;
+            if (kind !== "flight" && kind !== "hotel") throw new ToolError("kind should be flight or hotel");
+            const b = newBooking(kind, bookingFields(a, kind));
+            if (!b.name) throw new ToolError("name is needed");
+            checkBooking(b);
+            const first = await read(at);
+            const notes: string[] = [];
+            if (kind === "hotel" && b.lat === undefined) {
+                const f = await lookUp(b.name, first.plan, nearFor(first.plan, -1));
+                if (f) Object.assign(b, { lat: f.lat, lng: f.lng, address: b.address || f.address });
+                notes.push(lookedUp(newPlace({ place: b.name }), f));
+            }
+            const p = await save(at, (p) => coverBookings({ ...p, bookings: [...(p.bookings ?? []), b] }), first);
+            return done(p, at, notes);
+        },
+
+        update_booking: async (a) => {
+            const at = linkOf(a);
+            const id = str(a, "id", 100) ?? "";
+            const first = await read(at);
+            const was = first.plan.bookings?.find((b) => b.key === id);
+            if (!was) throw new ToolError(`there's no flight or hotel with id ${id} on this trip (get_trip lists them)`);
+            const fields = bookingFields(a, was.kind);
+            checkBooking({ ...was, ...fields });
+            const notes: string[] = [];
+            if (was.kind === "hotel" && fields.name && fields.name !== was.name && fields.lat === undefined) {
+                const f = await lookUp(fields.name, first.plan, nearFor(first.plan, -1));
+                if (f) Object.assign(fields, { lat: f.lat, lng: f.lng, ...(fields.address === undefined ? { address: f.address } : {}) });
+                notes.push(lookedUp(newPlace({ place: fields.name }), f));
+            }
+            const p = await save(
+                at,
+                (p) => {
+                    if (!p.bookings?.some((b) => b.key === id)) throw new ToolError(`there's no flight or hotel with id ${id} on this trip`);
+                    return coverBookings({ ...p, bookings: p.bookings.map((b) => (b.key === id ? { ...b, ...fields } : b)) });
+                },
+                first
+            );
+            return done(p, at, notes);
+        },
+
+        remove_booking: async (a) => {
+            const at = linkOf(a);
+            const id = str(a, "id", 100) ?? "";
+            const p = await save(at, (p) => {
+                if (!p.bookings?.some((b) => b.key === id)) throw new ToolError(`there's no flight or hotel with id ${id} on this trip (get_trip lists them)`);
+                return { ...p, bookings: p.bookings.filter((b) => b.key !== id) };
             });
             return done(p, at);
         },

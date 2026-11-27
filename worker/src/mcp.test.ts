@@ -67,7 +67,7 @@ describe("the connector for AI agents", () => {
         const note = await server(new Request(`${ORIGIN}/mcp`, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) }));
         expect(note.status).toBe(202);
         const names = (await rpc("tools/list")).body.result.tools.map((t: { name: string }) => t.name);
-        expect(names).toEqual(["get_trip", "create_trip", "update_trip", "add_places", "update_place", "move_place", "remove_place", "add_day", "remove_day", "move_day", "search_places"]);
+        expect(names).toEqual(["get_trip", "create_trip", "update_trip", "add_places", "update_place", "move_place", "remove_place", "add_day", "remove_day", "move_day", "add_booking", "update_booking", "remove_booking", "search_places"]);
 
         expect((await rpc("nope")).body.error?.code).toBe(-32601);
         expect((await server(new Request(`${ORIGIN}/mcp`, { method: "POST", body: "{" }))).status).toBe(400);
@@ -200,5 +200,25 @@ describe("the connector for AI agents", () => {
         expect(r.results).toEqual([{ name: "Nara", address: "Japan", lat: 34.6851, lng: 135.8048 }]);
         expect(searches[0]).toContain("lat=35");
         expect((await call("search_places", { query: "nara", country: "fr" })).results).toEqual([]);
+    });
+
+    it("records flights and hotels, and a hotel's stay shows on its days", async () => {
+        const { trip } = await call("create_trip", { title: "kyoto", start: "2027-04-03", end: "2027-04-04" });
+        const link = trip.link;
+        const hotel = await call("add_booking", { link, kind: "hotel", name: "Hotel Kanra", check_in: "2027-04-03", check_out: "2027-04-06", lat: 35, lng: 135.76 });
+        // The stay runs past the trip's end, so the trip grows to the check-out day.
+        expect(hotel.trip.end).toBe("2027-04-06");
+        expect(hotel.trip.days.map((d: { staying?: string }) => d.staying ?? "")).toEqual(["Hotel Kanra", "Hotel Kanra", "Hotel Kanra", ""]);
+        const flight = await call("add_booking", { link, kind: "flight", name: "JL 44", from: "LHR", to: "HND", date: "2027-04-01", departs: "19:20" });
+        expect(flight.trip.start).toBe("2027-04-01");
+        expect(flight.trip.days[0].flights).toEqual(["JL 44 LHR → HND 19:20"]);
+        const id = flight.trip.flights_and_hotels.find((b: { kind: string }) => b.kind === "flight").id;
+        await expect(call("update_booking", { link, id, departs: "7pm" })).rejects.toThrow("09:30");
+        await expect(call("update_booking", { link, id: hotel.trip.flights_and_hotels[0].id, check_out: "2027-04-02" })).rejects.toThrow("before");
+        const after = await call("update_booking", { link, id, note: "seat 31A" });
+        expect(after.trip.flights_and_hotels.find((b: { id: string }) => b.id === id).note).toBe("seat 31A");
+        const gone = await call("remove_booking", { link, id });
+        expect(gone.trip.flights_and_hotels).toHaveLength(1);
+        expect(gone.trip.days).toHaveLength(6);
     });
 });
