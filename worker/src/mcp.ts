@@ -16,6 +16,8 @@ export type AskRoom = (token: string, id: string | undefined, body?: { version: 
 
 export interface McpOptions {
     ask: AskRoom;
+    /** Asks a plan's room for its view-only code: { view }. */
+    view?: (token: string, id: string | undefined) => Promise<Response>;
     /** Where share links are, e.g. https://plan.thedylone.com. */
     origin: string;
     /** Looks up places; Photon (search.ts) unless a test gives its own. */
@@ -30,7 +32,7 @@ const MAX_TEXT = 5000;
 
 const INSTRUCTIONS = `Plans trips in the trip planner (travel.thedylone.com/planner/), with the person.
 
-A trip is opened by its share link (like https://plan.thedylone.com/Xk3f9QmT2aLp7RvB), which the person gets from Share in the planner; anyone with it can see and change the trip, so don't post it anywhere. Every tool but create_trip and search_places takes that link. Changes show on the person's phones within about 15 seconds while the trip is open, and merge with what they change at the same time.
+A trip is opened by its share link (like https://plan.thedylone.com/Xk3f9QmT2aLp7RvB), which the person gets from Share in the planner; anyone with it can see and change the trip, so don't post it anywhere. A view-only link (a longer code) can read the trip with get_trip but not change it; get_view_link gives one, for showing the trip to people who shouldn't change it. Every tool but create_trip and search_places takes that link. Changes show on the person's phones within about 15 seconds while the trip is open, and merge with what they change at the same time.
 
 A trip has days, in order (day 1 is the first), each with its places in visiting order, and "places to visit" (day 0): ideas not on a day yet. With a start date, day n is start + n - 1, and the number of days sets the end date. A place has an id, which the other tools take; get_trip lists them. A side trip (side: true) is a detour from the main stop before it. Places are looked up on the map (OpenStreetMap) when added without lat/lng: check what was found, and give lat/lng (from search_places) when it's the wrong one.
 
@@ -72,7 +74,8 @@ const date = (a: Args, k: string): string | undefined => {
 export const readLink = (link: string): { token: string; id?: string } | undefined => {
     const old = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([0-9a-f]{64})/.exec(link);
     if (old) return { id: old[1], token: old[2] };
-    const code = /(?:^|[/=#])([A-Za-z0-9_-]{16})(?=$|[/?#&])/.exec(link.trim());
+    // A share code is 16 characters, a view-only one 20.
+    const code = /(?:^|[/=#])([A-Za-z0-9_-]{20}|[A-Za-z0-9_-]{16})(?=$|[/?#&])/.exec(link.trim());
     return code ? { token: code[1] } : undefined;
 };
 
@@ -190,6 +193,13 @@ export const TOOLS = [
         name: "get_trip",
         title: "Read a trip",
         description: "The trip behind a share link: its dates, its days with their places in order (each with an id), and the places to visit.",
+        inputSchema: { type: "object", properties: { link: LINK }, required: ["link"] },
+        annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    {
+        name: "get_view_link",
+        title: "Get a view-only link",
+        description: "A link that shows the trip but can't change it, for people who should only see it. Takes the trip's (edit) share link; it's the same view-only link each time.",
         inputSchema: { type: "object", properties: { link: LINK }, required: ["link"] },
         annotations: { readOnlyHint: true, openWorldHint: false },
     },
@@ -325,6 +335,7 @@ export const mcpTools = (o: McpOptions) => {
                 continue;
             }
             if (res.status === 413) throw new ToolError("the trip would be too big to save; make the notes shorter");
+            if (res.status === 403) throw new ToolError("that's a view-only link: it can read the trip but not change it. Ask the person for the trip's share link from Share › Can edit in the planner");
             throw new Error(`the trip couldn't be saved (${res.status})`);
         }
         throw new ToolError("the trip kept changing while saving; try again");
@@ -353,7 +364,19 @@ export const mcpTools = (o: McpOptions) => {
     const tools: Record<string, (a: Args) => Promise<unknown>> = {
         get_trip: async (a) => {
             const at = linkOf(a);
-            return showTrip((await read(at)).plan, linkFor(at));
+            const saved = (await read(at)) as Saved & { viewOnly?: boolean };
+            return { ...showTrip(saved.plan, linkFor(at)), ...(saved.viewOnly ? { view_only: true } : {}) };
+        },
+
+        get_view_link: async (a) => {
+            const at = linkOf(a);
+            if (!o.view) throw new ToolError("view-only links aren't available here");
+            const res = await o.view(at.token, at.id);
+            if (res.status === 404) throw new ToolError("there's no trip at that link (it may have been deleted for everyone)");
+            if (res.status === 403) throw new ToolError("that link doesn't open a trip");
+            if (!res.ok) throw new Error(`the view-only link couldn't be made (${res.status})`);
+            const { view } = (await res.json()) as { view: string };
+            return { view_link: linkFor({ token: view }), notes: ["Anyone with this link can see the trip, and its changes, but not change it."] };
         },
 
         create_trip: async (a) => {
