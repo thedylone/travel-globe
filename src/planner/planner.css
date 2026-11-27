@@ -184,6 +184,34 @@ body:has(.plan) {
     gap: 8px;
 }
 
+/* Stays at the top of the list while it scrolls, so undo is always in reach. */
+.plan-side .plan-head {
+    position: sticky;
+    top: -4px;
+    z-index: 5;
+    margin: -4px -8px 0;
+    padding: 4px 8px;
+    background: var(--bg);
+}
+
+.plan-head-nav,
+.plan-undo {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.plan-undo button.icon {
+    width: 40px;
+    min-height: 40px;
+    border-color: transparent;
+    background: none;
+}
+
+.plan-undo button.icon:not(:disabled):hover {
+    background: var(--hover-strong);
+}
+
 .plan-sync {
     margin: -4px 0 4px;
     font-size: 13px;
