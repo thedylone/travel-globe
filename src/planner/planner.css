@@ -184,6 +184,51 @@ body:has(.plan) {
     gap: 8px;
 }
 
+/* Share: a link that can change the trip, or one that can only see it. */
+.plan-share {
+    position: relative;
+}
+
+.plan-share-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    display: grid;
+    width: max-content;
+    max-width: 260px;
+    padding: 4px;
+    border: var(--outline);
+    border-radius: var(--radius-sm);
+    background: var(--surface-solid);
+    box-shadow: var(--pop);
+}
+
+.plan-share-menu button {
+    display: grid;
+    justify-items: start;
+    min-height: 0;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    text-align: left;
+    white-space: normal;
+}
+
+.plan-share-menu .name {
+    font-weight: 800;
+}
+
+.plan-share-menu .muted {
+    font-size: 13px;
+}
+
+.plan-place-note {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
 /* Stays at the top of the list while it scrolls, so undo is always in reach. */
 .plan-top {
     position: sticky;

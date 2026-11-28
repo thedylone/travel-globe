@@ -67,7 +67,7 @@ describe("the connector for AI agents", () => {
         const note = await server(new Request(`${ORIGIN}/mcp`, { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) }));
         expect(note.status).toBe(202);
         const names = (await rpc("tools/list")).body.result.tools.map((t: { name: string }) => t.name);
-        expect(names).toEqual(["get_trip", "create_trip", "update_trip", "add_places", "update_place", "move_place", "remove_place", "add_day", "remove_day", "move_day", "add_booking", "update_booking", "remove_booking", "search_places"]);
+        expect(names).toEqual(["get_trip", "get_view_link", "create_trip", "update_trip", "add_places", "update_place", "move_place", "remove_place", "add_day", "remove_day", "move_day", "add_booking", "update_booking", "remove_booking", "search_places"]);
 
         expect((await rpc("nope")).body.error?.code).toBe(-32601);
         expect((await server(new Request(`${ORIGIN}/mcp`, { method: "POST", body: "{" }))).status).toBe(400);
@@ -192,6 +192,20 @@ describe("the connector for AI agents", () => {
         const { body } = await rpc("tools/call", { name: "delete_trip", arguments: { link } });
         expect(body.error?.code).toBe(-32602);
         // Nothing changed.
+        expect((await sync(mine)).shared?.version).toBe(1);
+    });
+
+    it("reads a trip from a view-only link, but doesn't change it", async () => {
+        const mine = await share(phonePlan());
+        const link = `${ORIGIN}/${mine.shared!.secret}`;
+        const { view_link } = await call("get_view_link", { link });
+        expect(view_link).toMatch(/^https:\/\/sync\.example\.com\/[A-Za-z0-9_-]{20}$/);
+        expect(readLink(view_link)?.token).toHaveLength(20);
+        expect((await call("get_view_link", { link: view_link })).view_link).toBe(view_link);
+        expect(await call("get_trip", { link: view_link })).toMatchObject({ title: "japan", view_only: true });
+        expect((await call("get_trip", { link })).view_only).toBeUndefined();
+        await expect(call("update_trip", { link: view_link, title: "nope" })).rejects.toThrow("view-only link");
+        await expect(call("add_places", { link: view_link, places: [{ day: 1, place: "Nara" }] })).rejects.toThrow("view-only link");
         expect((await sync(mine)).shared?.version).toBe(1);
     });
 

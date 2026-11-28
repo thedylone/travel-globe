@@ -32,7 +32,7 @@ import { type Found, searchPlaces } from "./search";
 import { persist, saveFiles, store } from "./store";
 import { pictureKey, tripPicture } from "./picture";
 import { emptyHistory, type History, record, redo, undo } from "./history";
-import { Gone, join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL, unshare } from "./sync";
+import { Gone, join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL, unshare, viewLink, viewOnly } from "./sync";
 import { shareFontDataUrl } from "../lib/rasterize";
 import { applePlace, googlePlace, googleRoute, MAX_ROUTE, parseCoords } from "./maps";
 
@@ -126,7 +126,7 @@ export const Planner = () => {
     const drawing = useRef(new Set<string>());
     const updatePicture = useCallback(async (p: Plan) => {
         const key = pictureKey(p);
-        if (!p.shared || p.shared.picture === key || drawing.current.has(p.id)) return;
+        if (!p.shared || viewOnly(p) || p.shared.picture === key || drawing.current.has(p.id)) return;
         drawing.current.add(p.id);
         try {
             await sendPicture(p, await tripPicture(p, await shareFontDataUrl().catch(() => undefined)));
@@ -227,6 +227,7 @@ export const Planner = () => {
         setHistoryShown((n) => n + 1);
     };
     const save = (p: Plan) => {
+        if (viewOnly(p)) return;
         const next = { ...p, updated: Date.now() };
         keep(next);
         syncSoon(next);
@@ -246,9 +247,13 @@ export const Planner = () => {
         setHistory(id, done.history);
         save(done.plan);
     };
-    const startSharing = async (p: Plan) => {
+    /** Sends the plan's link: one that can change it, or (`view`) one that can only see it. */
+    const startSharing = async (p: Plan, view: boolean) => {
         if (!p.shared) {
-            if (!confirm("Share this trip? Anyone with the link can see it and change it, and changes sync between everyone's phones.")) return;
+            const ask = view
+                ? "Share this trip? Anyone with the view-only link can see it, and its changes, but not change it."
+                : "Share this trip? Anyone with the link can see it and change it, and changes sync between everyone's phones.";
+            if (!confirm(ask)) return;
             try {
                 p = settle(p, current.current.find((x) => x.id === p.id) ?? p, await share(p));
                 keep(p);
@@ -259,16 +264,30 @@ export const Planner = () => {
                 return setError(`Couldn't share it: ${navigator.onLine ? (e as Error).message : "you're offline"}`);
             }
         }
+        let link = shareLink(p);
+        if (view) {
+            try {
+                const got = await viewLink(p);
+                if (got.plan !== p) {
+                    const now = current.current.find((x) => x.id === p.id) ?? got.plan;
+                    keep(now.shared ? { ...now, shared: { ...now.shared, view: got.plan.shared!.view } } : now);
+                }
+                link = got.link;
+            } catch (e) {
+                return setError(`Couldn't make the view-only link: ${navigator.onLine ? (e as Error).message : "you're offline"}`);
+            }
+        }
+        const who = view ? "whoever should see the trip" : "whoever you're planning with";
         try {
-            setNotice((await sendLink(p.title || "Trip plan", shareLink(p))) || undefined);
+            setNotice((await sendLink(p.title || "Trip plan", link)) || undefined);
         } catch {
-            setNotice(`Send this link to whoever you're planning with: ${shareLink(p)}`);
+            setNotice(`Send this link to ${who}: ${link}`);
         }
     };
     const remove = async (p: Plan) => {
         const name = p.title || "untitled trip";
         if (!confirm(`Delete "${name}" from this phone?`)) return;
-        if (p.shared && confirm(`Delete "${name}" for everyone with the link too? Its link stops working.\n\nCancel keeps it for them.`)) {
+        if (p.shared && !viewOnly(p) && confirm(`Delete "${name}" for everyone with the link too? Its link stops working.\n\nCancel keeps it for them.`)) {
             try {
                 await unshare(p);
             } catch (e) {
@@ -331,7 +350,8 @@ export const Planner = () => {
                     onUndo={() => travel(plan.id, true)}
                     onRedo={() => travel(plan.id, false)}
                     onExport={() => exportPlans([plan])}
-                    onShare={SYNC_URL ? () => startSharing(plan) : undefined}
+                    readOnly={viewOnly(plan)}
+                    onShare={SYNC_URL ? (view) => startSharing(plan, view) : undefined}
                     onDelete={() => void remove(plan)}
                 />
             </>
@@ -377,7 +397,7 @@ export const Planner = () => {
                                     <span className="title">{p.title || "Untitled trip"}</span>
                                     <span className="muted">
                                         {dates(p)} · {count(scheduled(p).length, "place")}
-                                        {p.shared && " · shared"}
+                                        {p.shared && (viewOnly(p) ? " · view only" : " · shared")}
                                         {needsExport(p) && <span className="dot" title="Not exported since it changed" />}
                                     </span>
                                 </button>
@@ -414,17 +434,20 @@ interface EditorProps {
     onUndo: () => void;
     onRedo: () => void;
     onExport: () => void;
-    /** Shares the plan, or sends its link again; unset when the site has no sync server. */
-    onShare?: () => void;
+    /** Opened from a view-only link: shown, but not changeable. */
+    readOnly?: boolean;
+    /** Shares the plan, or sends its link again (`view`: the view-only one); unset when the site has no sync server. */
+    onShare?: (view: boolean) => void;
     onDelete: () => void;
 }
 
 /** "Shared · synced 2 min ago", or why it isn't. */
 const syncLine = (p: Plan, s?: SyncState) => {
     if (!p.shared) return "";
-    if (s === "syncing") return "Shared · syncing…";
-    if (s && typeof s === "object") return s.error === "offline" ? "Shared · offline, syncs when back online" : `Shared · couldn't sync: ${s.error}`;
-    return `Shared · synced ${ago(p.shared.synced)}`;
+    const what = viewOnly(p) ? "View only" : "Shared";
+    if (s === "syncing") return `${what} · syncing…`;
+    if (s && typeof s === "object") return s.error === "offline" ? `${what} · offline, syncs when back online` : `${what} · couldn't sync: ${s.error}`;
+    return `${what} · synced ${ago(p.shared.synced)}`;
 };
 
 /** Where a place is: on day `day`, or in the ideas (`day` -1). */
@@ -433,7 +456,9 @@ interface At {
     i: number;
 }
 
-const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, onExport, onShare, onDelete }: EditorProps) => {
+const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, onUndo, onRedo, onExport, onShare, onDelete }: EditorProps) => {
+    const onEdit = readOnly ? () => {} : edit;
+    const [shareMenu, setShareMenu] = useState(false);
     const [focus, setFocus] = useState<number>();
     const [active, setActive] = useState<string>();
     const set = (patch: Partial<Plan>, group?: string) => onEdit({ ...plan, ...patch }, group);
@@ -530,7 +555,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
     const sortedBookings = [...bookings].sort((a, b) => (a.start || "9") .localeCompare(b.start || "9") || a.time.localeCompare(b.time));
     const pinned = (b: Booking, when: "morning" | "flight" | "night", date: string) => (
         <li key={`${when}:${b.key}`} className={`plan-pinned ${b.kind}`}>
-            <button onClick={() => showBooking(b.key)} title="Booked: change it in Flights & hotels">
+            <button onClick={() => showBooking(b.key)} title={readOnly ? "Booked" : "Booked: change it in Flights & hotels"}>
                 <span className="num">{b.kind === "hotel" ? <BedIcon /> : <PlaneIcon />}</span>
                 <span className="plan-place-text">
                     <span className="name">{bookingTitle(b)}</span>
@@ -555,6 +580,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                     last={i === list(day).length - 1}
                     day={day}
                     days={days}
+                    readOnly={readOnly}
                     onOpen={() => open(x.key === active ? undefined : x.key)}
                     onChange={(patch, field) =>
                         editList(
@@ -610,6 +636,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                             <button className="link" onClick={() => go()}>
                                 ‹ Plans
                             </button>
+                            {!readOnly && (
                             <span className="plan-undo">
                                 <button className="icon" disabled={!canUndo} onClick={onUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
                                     <UndoIcon />
@@ -618,12 +645,39 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                                     <UndoIcon redo />
                                 </button>
                             </span>
+                            )}
                         </span>
                         <span className="plan-head-title" title={plan.title || undefined}>
                             {plan.title || "Untitled trip"}
                         </span>
                         <span className="plan-head-actions">
-                            {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
+                            {onShare &&
+                                (readOnly ? (
+                                    <button onClick={() => onShare(true)}>Share link</button>
+                                ) : (
+                                    <span className="plan-share">
+                                        <button onClick={() => setShareMenu(!shareMenu)} aria-expanded={shareMenu}>
+                                            {plan.shared ? "Share link" : "Share"}
+                                        </button>
+                                        {shareMenu && (
+                                            <span className="plan-share-menu" role="menu">
+                                                {[false, true].map((view) => (
+                                                    <button
+                                                        key={String(view)}
+                                                        role="menuitem"
+                                                        onClick={() => {
+                                                            setShareMenu(false);
+                                                            onShare(view);
+                                                        }}
+                                                    >
+                                                        <span className="name">{view ? "View only" : "Can edit"}</span>
+                                                        <span className="muted">{view ? "They can see the trip, not change it" : "They can change the trip too"}</span>
+                                                    </button>
+                                                ))}
+                                            </span>
+                                        )}
+                                    </span>
+                                ))}
                             <button className={needsExport(plan) ? "primary" : ""} onClick={onExport}>
                                 Export
                             </button>
@@ -631,13 +685,15 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                     </header>
                 </div>
                 {plan.shared && <p className={`muted plan-sync${typeof syncing === "object" ? " failed" : ""}`}>{syncLine(plan, syncing)}</p>}
-                <input className="plan-title" value={plan.title} placeholder="Trip title" onChange={(e) => set({ title: e.target.value }, "title")} />
+                {readOnly && <p className="muted plan-hint plan-view-only">You can see this trip and its changes, but not change it: it was shared with a view-only link.</p>}
+                <input className="plan-title" value={plan.title} placeholder="Trip title" readOnly={readOnly} onChange={(e) => set({ title: e.target.value }, "title")} />
                 <div className="plan-dates">
                     <label>
                         Start
                         <input
                             type="date"
                             value={plan.start}
+                            disabled={readOnly}
                             onChange={(e) => {
                                 // The days move with the start; the trip keeps its length.
                                 const start = e.target.value;
@@ -651,7 +707,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                             type="date"
                             value={endDate(plan)}
                             min={plan.start || undefined}
-                            disabled={!plan.start}
+                            disabled={readOnly || !plan.start}
                             onChange={(e) => {
                                 const next = setDates(plan, plan.start, e.target.value);
                                 const dropped = plan.days.length - next.days.length;
@@ -669,15 +725,15 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                     <div className="plan-fields">
                         <label>
                             From
-                            <input list="planner-bases" value={plan.from} placeholder="home, or a place" onChange={(e) => set({ from: e.target.value }, "from")} />
+                            <input list="planner-bases" value={plan.from} placeholder="home, or a place" readOnly={readOnly} onChange={(e) => set({ from: e.target.value }, "from")} />
                         </label>
                         <label>
                             To
-                            <input list="planner-bases" value={plan.to} placeholder="if not where it started" onChange={(e) => set({ to: e.target.value }, "to")} />
+                            <input list="planner-bases" value={plan.to} placeholder="if not where it started" readOnly={readOnly} onChange={(e) => set({ to: e.target.value }, "to")} />
                         </label>
                         <label>
                             Country codes (narrow the search)
-                            <input value={plan.country} placeholder="e.g. jp or gb,ie" autoCapitalize="off" onChange={(e) => set({ country: e.target.value }, "country")} />
+                            <input value={plan.country} placeholder="e.g. jp or gb,ie" autoCapitalize="off" readOnly={readOnly} onChange={(e) => set({ country: e.target.value }, "country")} />
                         </label>
                         <datalist id="planner-bases">
                             {bases.map((b) => (
@@ -700,21 +756,26 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                                 key={b.key}
                                 booking={b}
                                 open={b.key === active}
+                                readOnly={readOnly}
                                 onOpen={() => setActive(b.key === active ? undefined : b.key)}
                                 onChange={(patch, field) => editBookings((bs) => bs.map((x) => (x.key === b.key ? { ...x, ...patch } : x)), field && `${field}:${b.key}`)}
                                 onRemove={() => editBookings((bs) => bs.filter((x) => x.key !== b.key))}
                             />
                         ))}
                     </ol>
-                    <AddPlace
-                        country={plan.country}
-                        near={near(-1)}
-                        placeholder="Add a hotel"
-                        onAdd={(x) => addBooking(newBooking("hotel", { name: x.place, lat: x.lat, lng: x.lng, address: x.address }))}
-                    />
-                    <button className="plan-add-flight" onClick={() => addBooking(newBooking("flight", { start: plan.start }))}>
-                        ＋ Add a flight
-                    </button>
+                    {!readOnly && (
+                        <>
+                            <AddPlace
+                                country={plan.country}
+                                near={near(-1)}
+                                placeholder="Add a hotel"
+                                onAdd={(x) => addBooking(newBooking("hotel", { name: x.place, lat: x.lat, lng: x.lng, address: x.address }))}
+                            />
+                            <button className="plan-add-flight" onClick={() => addBooking(newBooking("flight", { start: plan.start }))}>
+                                ＋ Add a flight
+                            </button>
+                        </>
+                    )}
                 </section>
 
                 <section className="plan-day ideas">
@@ -723,7 +784,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                         <span className="muted">{plan.ideas.length || ""}</span>
                     </h2>
                     {placeList(-1)}
-                    <AddPlace country={plan.country} near={near(-1)} placeholder="Add a place you might go" onAdd={(x) => add(-1, x)} />
+                    {!readOnly && <AddPlace country={plan.country} near={near(-1)} placeholder="Add a place you might go" onAdd={(x) => add(-1, x)} />}
                 </section>
 
                 {plan.days.map((d, day) => {
@@ -754,7 +815,7 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                                     Directions
                                 </a>
                             )}
-                            {plan.days.length > 1 && (
+                            {!readOnly && plan.days.length > 1 && (
                                 <button className="link plan-day-remove" aria-label="Remove this day" onClick={() => removeDay(day)}>
                                     ✕
                                 </button>
@@ -768,13 +829,15 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                         )}
                         {placeList(day)}
                         {booked.night.length > 0 && <ol className="plan-places plan-pins">{booked.night.map((b) => pinned(b, "night", date))}</ol>}
-                        <AddPlace country={plan.country} near={near(day)} placeholder="Add a place" onAdd={(x) => add(day, x)} />
+                        {!readOnly && <AddPlace country={plan.country} near={near(day)} placeholder="Add a place" onAdd={(x) => add(day, x)} />}
                     </section>
                     );
                 })}
-                <button className="plan-add-day" onClick={() => set({ days: [...plan.days, newDay()] })}>
-                    + Add a day
-                </button>
+                {!readOnly && (
+                    <button className="plan-add-day" onClick={() => set({ days: [...plan.days, newDay()] })}>
+                        + Add a day
+                    </button>
+                )}
 
                 {unfinished(plan) > 0 && (
                     <p className="muted plan-hint">The trip has no dates yet. That's fine for now; set the start date before you add it in the studio.</p>
@@ -817,6 +880,7 @@ interface PlaceProps {
     last: boolean;
     day: number;
     days: { value: number; label: string }[];
+    readOnly?: boolean;
     onOpen: () => void;
     /** `field` is set for typing, so a burst of it undoes as one. */
     onChange: (patch: Partial<PlanPlace>, field?: string) => void;
@@ -826,7 +890,7 @@ interface PlaceProps {
     onDuplicate: () => void;
 }
 
-const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onChange, onMove, onMoveTo, onRemove, onDuplicate }: PlaceProps) => (
+const PlaceCard = ({ place, n, color, open, first, last, day, days, readOnly, onOpen, onChange, onMove, onMoveTo, onRemove, onDuplicate }: PlaceProps) => (
     <li className={`plan-place${open ? " open" : ""}${place.side ? " side" : ""}`} data-place={place.key}>
         <button className="plan-place-head" onClick={onOpen}>
             <span className="num" style={color ? { background: color } : undefined}>
@@ -840,7 +904,22 @@ const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onCh
                 {!open && place.note && <span className="note">{place.note}</span>}
             </span>
         </button>
-        {open && (
+        {open && readOnly && (
+            <div className="plan-place-body">
+                {place.note && <p className="note plan-place-note">{place.note}</p>}
+                <div className="plan-place-maps">
+                    <a href={googlePlace(place)} target="_blank" rel="noopener noreferrer">
+                        Google Maps
+                    </a>
+                    {APPLE && (
+                        <a href={applePlace(place)} target="_blank" rel="noopener noreferrer">
+                            Apple Maps
+                        </a>
+                    )}
+                </div>
+            </div>
+        )}
+        {open && !readOnly && (
             <div className="plan-place-body">
                 <textarea
                     value={place.note}
@@ -918,13 +997,14 @@ const pinnedLine = (b: Booking, when: "morning" | "flight" | "night", date: stri
 interface BookingProps {
     booking: Booking;
     open: boolean;
+    readOnly?: boolean;
     onOpen: () => void;
     onChange: (patch: Partial<Booking>, field?: string) => void;
     onRemove: () => void;
 }
 
 /** A flight or hotel in Flights & hotels: what's booked, and when. */
-const BookingCard = ({ booking: b, open, onOpen, onChange, onRemove }: BookingProps) => {
+const BookingCard = ({ booking: b, open, readOnly, onOpen, onChange, onRemove }: BookingProps) => {
     const hotel = b.kind === "hotel";
     const when = hotel
         ? b.start && b.end
@@ -956,10 +1036,11 @@ const BookingCard = ({ booking: b, open, onOpen, onChange, onRemove }: BookingPr
                 <span className="plan-place-text">
                     <span className="name">{bookingTitle(b)}</span>
                     <span className="muted">{when}</span>
-                    {!open && b.note && <span className="note">{b.note}</span>}
+                    {(!open || readOnly) && b.note && <span className="note">{b.note}</span>}
+                    {open && readOnly && b.kind === "hotel" && b.address && <span className="muted">{b.address}</span>}
                 </span>
             </button>
-            {open && (
+            {open && !readOnly && (
                 <div className="plan-place-body">
                     {hotel ? (
                         <>

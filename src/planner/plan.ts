@@ -76,8 +76,10 @@ export interface Booking {
 }
 
 export interface Shared {
-    /** The secret in the share link. Anyone with it can see and change the plan. */
+    /** The secret in the share link. Anyone with it can see and change the plan, unless it's a view-only code (see sync.ts). */
     secret: string;
+    /** The plan's view-only code, once this phone has asked for it. */
+    view?: string;
     /** The version this phone last synced, and the plan as it was then, to merge changes against. */
     version: number;
     base: Omit<Plan, "exported" | "shared">;
