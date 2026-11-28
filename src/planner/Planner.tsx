@@ -3,14 +3,19 @@ import bases from "virtual:travel-bases";
 import { formatDateRange } from "../lib/dates";
 import {
     addDays,
+    type Booking,
+    bookingsOn,
+    coverBookings,
     dayColor,
     dayDate,
+    daysBetween,
     emptyPlan,
     endDate,
     fileName,
     fromYaml,
     move,
     needsExport,
+    newBooking,
     newDay,
     newPlace,
     type Plan,
@@ -532,6 +537,34 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
         const places = day < 0 ? scheduled(plan).map((s) => s.place) : plan.days.slice(0, day + 1).flatMap((d) => d.places);
         return places.filter((x) => x.lat !== undefined).pop() as { lat: number; lng: number } | undefined;
     };
+    // ---- Flights and hotels ----
+    const bookings = plan.bookings ?? [];
+    /** The plan with its bookings changed; the trip's days grow to cover their dates. */
+    const editBookings = (change: (bs: Booking[]) => Booking[], group?: string) => onEdit(coverBookings({ ...plan, bookings: change(bookings) }), group);
+    const addBooking = (b: Booking) => {
+        editBookings((bs) => [...bs, b]);
+        setActive(b.key);
+    };
+    /** Opens a booking's card from a day or the map, and scrolls to it. */
+    const showBooking = (key: string) => {
+        setActive(key);
+        if (sheet === "map" && matchMedia(PHONE).matches) showSheet("split");
+        requestAnimationFrame(() => document.querySelector(`[data-booking="${key}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+    };
+    /** Bookings by date, the undated last. */
+    const sortedBookings = [...bookings].sort((a, b) => (a.start || "9") .localeCompare(b.start || "9") || a.time.localeCompare(b.time));
+    const pinned = (b: Booking, when: "morning" | "flight" | "night", date: string) => (
+        <li key={`${when}:${b.key}`} className={`plan-pinned ${b.kind}`}>
+            <button onClick={() => showBooking(b.key)} title={readOnly ? "Booked" : "Booked: change it in Flights & hotels"}>
+                <span className="num">{b.kind === "hotel" ? <BedIcon /> : <PlaneIcon />}</span>
+                <span className="plan-place-text">
+                    <span className="name">{bookingTitle(b)}</span>
+                    <span className="muted">{pinnedLine(b, when, date)}</span>
+                </span>
+            </button>
+        </li>
+    );
+
     const days = plan.days.map((_, i) => ({ value: i, label: plan.start ? dayLabel(dayDate(plan, i)) : `Day ${i + 1}` }));
 
     const placeList = (day: number) => (
@@ -573,7 +606,7 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
     return (
         <div className="plan" ref={root} data-sheet={sheet} data-sidebar={sidebar ? "shown" : "hidden"}>
             <div className="plan-map-wrap" ref={mapWrap}>
-                <PlanMap plan={plan} focus={focus} active={active} onSelect={select} />
+                <PlanMap plan={plan} focus={focus} active={active} onSelect={(key) => (bookings.some((b) => b.key === key) ? showBooking(key) : select(key))} />
                 <button
                     className="plan-side-toggle"
                     onClick={toggleSidebar}
@@ -712,6 +745,39 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
                     </div>
                 </details>
 
+                <section className="plan-day bookings">
+                    <h2>
+                        <span>Flights &amp; hotels</span>
+                        <span className="muted">{bookings.length || ""}</span>
+                    </h2>
+                    <ol className="plan-places">
+                        {sortedBookings.map((b) => (
+                            <BookingCard
+                                key={b.key}
+                                booking={b}
+                                open={b.key === active}
+                                readOnly={readOnly}
+                                onOpen={() => setActive(b.key === active ? undefined : b.key)}
+                                onChange={(patch, field) => editBookings((bs) => bs.map((x) => (x.key === b.key ? { ...x, ...patch } : x)), field && `${field}:${b.key}`)}
+                                onRemove={() => editBookings((bs) => bs.filter((x) => x.key !== b.key))}
+                            />
+                        ))}
+                    </ol>
+                    {!readOnly && (
+                        <>
+                            <AddPlace
+                                country={plan.country}
+                                near={near(-1)}
+                                placeholder="Add a hotel"
+                                onAdd={(x) => addBooking(newBooking("hotel", { name: x.place, lat: x.lat, lng: x.lng, address: x.address }))}
+                            />
+                            <button className="plan-add-flight" onClick={() => addBooking(newBooking("flight", { start: plan.start }))}>
+                                ＋ Add a flight
+                            </button>
+                        </>
+                    )}
+                </section>
+
                 <section className="plan-day ideas">
                     <h2>
                         <span>Places to visit</span>
@@ -721,7 +787,12 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
                     {!readOnly && <AddPlace country={plan.country} near={near(-1)} placeholder="Add a place you might go" onAdd={(x) => add(-1, x)} />}
                 </section>
 
-                {plan.days.map((d, day) => (
+                {plan.days.map((d, day) => {
+                    const booked = bookingsOn(plan, day);
+                    const date = dayDate(plan, day);
+                    // The hotel slept in shows in the morning only on the day you check out.
+                    const out = booked.morning.filter((b) => b.end === date);
+                    return (
                     <section key={d.key} className={`plan-day${focus === day ? " focused" : ""}`}>
                         <h2>
                             <button className="plan-day-name" onClick={() => setFocus(focus === day ? undefined : day)} title="Show this day on the map">
@@ -750,10 +821,18 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
                                 </button>
                             )}
                         </h2>
+                        {(out.length > 0 || booked.flights.length > 0) && (
+                            <ol className="plan-places plan-pins">
+                                {out.map((b) => pinned(b, "morning", date))}
+                                {booked.flights.map((b) => pinned(b, "flight", date))}
+                            </ol>
+                        )}
                         {placeList(day)}
+                        {booked.night.length > 0 && <ol className="plan-places plan-pins">{booked.night.map((b) => pinned(b, "night", date))}</ol>}
                         {!readOnly && <AddPlace country={plan.country} near={near(day)} placeholder="Add a place" onAdd={(x) => add(day, x)} />}
                     </section>
-                ))}
+                    );
+                })}
                 {!readOnly && (
                     <button className="plan-add-day" onClick={() => set({ days: [...plan.days, newDay()] })}>
                         + Add a day
@@ -765,7 +844,7 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
                 )}
                 <p className="muted plan-hint">
                     Export saves <b>{fileName(plan)}</b>, with a stop for each place (a place on several days in a row is one
-                    stop). Open it in the studio with <b>Open a planned trip</b> to add your photos. Places to visit aren't exported.
+                    stop). Open it in the studio with <b>Open a planned trip</b> to add your photos. Places to visit and flights &amp; hotels aren't exported.
                 </p>
                 <button className="danger plan-delete" onClick={onDelete}>
                     Delete trip
@@ -896,6 +975,124 @@ const PlaceCard = ({ place, n, color, open, first, last, day, days, readOnly, on
             </div>
         )}
     </li>
+);
+
+/** "BA 7 · LHR → HND", or the hotel's name. */
+const bookingTitle = (b: Booking) => {
+    if (b.kind === "hotel") return b.name || "Hotel";
+    const route = b.from || b.to ? `${b.from || "?"} → ${b.to || "?"}` : "";
+    return [b.name, route].filter(Boolean).join(" · ") || "Flight";
+};
+
+const nights = (b: Booking) => (b.start && b.end ? daysBetween(b.start, b.end) : 0);
+
+/** What a pinned booking says on a day. */
+const pinnedLine = (b: Booking, when: "morning" | "flight" | "night", date: string) => {
+    if (when === "flight") return [b.time && `Leaves ${b.time}`, b.arrive && `lands ${b.arrive}${b.end && b.end !== b.start ? ` on ${dayLabel(b.end)}` : ""}`].filter(Boolean).join(", ") || "Flight";
+    if (when === "morning") return "Check out";
+    const night = daysBetween(b.start, date) + 1;
+    return night === 1 ? `Check in · ${count(nights(b), "night")}` : `Night ${night} of ${nights(b)}`;
+};
+
+interface BookingProps {
+    booking: Booking;
+    open: boolean;
+    readOnly?: boolean;
+    onOpen: () => void;
+    onChange: (patch: Partial<Booking>, field?: string) => void;
+    onRemove: () => void;
+}
+
+/** A flight or hotel in Flights & hotels: what's booked, and when. */
+const BookingCard = ({ booking: b, open, readOnly, onOpen, onChange, onRemove }: BookingProps) => {
+    const hotel = b.kind === "hotel";
+    const when = hotel
+        ? b.start && b.end
+            ? `${formatDateRange({ start: b.start, end: b.end })} · ${count(nights(b), "night")}`
+            : "Add the dates to put it on the days"
+        : [b.start && dayLabel(b.start), b.time].filter(Boolean).join(", ") || "Add the date to put it on its day";
+    const text = (field: keyof Booking, label: string, placeholder = "") => (
+        <label>
+            {label}
+            <input value={(b[field] as string) ?? ""} placeholder={placeholder} onChange={(e) => onChange({ [field]: e.target.value }, field)} />
+        </label>
+    );
+    const day = (field: "start" | "end", label: string, min?: string) => (
+        <label>
+            {label}
+            <input type="date" value={b[field]} min={min || undefined} onChange={(e) => onChange({ [field]: e.target.value })} />
+        </label>
+    );
+    const time = (field: "time" | "arrive", label: string) => (
+        <label>
+            {label}
+            <input type="time" value={b[field]} onChange={(e) => onChange({ [field]: e.target.value })} />
+        </label>
+    );
+    return (
+        <li className={`plan-place plan-booking ${b.kind}${open ? " open" : ""}`} data-booking={b.key}>
+            <button className="plan-place-head" onClick={onOpen}>
+                <span className="num">{hotel ? <BedIcon /> : <PlaneIcon />}</span>
+                <span className="plan-place-text">
+                    <span className="name">{bookingTitle(b)}</span>
+                    <span className="muted">{when}</span>
+                    {(!open || readOnly) && b.note && <span className="note">{b.note}</span>}
+                    {open && readOnly && b.kind === "hotel" && b.address && <span className="muted">{b.address}</span>}
+                </span>
+            </button>
+            {open && !readOnly && (
+                <div className="plan-place-body">
+                    {hotel ? (
+                        <>
+                            {text("name", "Hotel")}
+                            <div className="plan-booking-grid">
+                                {day("start", "Check in")}
+                                {day("end", "Check out", b.start)}
+                            </div>
+                            {b.address && <span className="muted">{b.address}</span>}
+                        </>
+                    ) : (
+                        <>
+                            {text("name", "Flight", "e.g. BA 7")}
+                            <div className="plan-booking-grid">
+                                {text("from", "From", "e.g. LHR")}
+                                {text("to", "To", "e.g. HND")}
+                                {day("start", "Date")}
+                                {time("time", "Leaves")}
+                                {day("end", "Lands (if another day)", b.start)}
+                                {time("arrive", "Lands")}
+                            </div>
+                        </>
+                    )}
+                    <textarea
+                        value={b.note}
+                        placeholder={hotel ? "Booking number, check-in time…" : "Booking number, terminal, seats…"}
+                        rows={Math.min(6, b.note.split("\n").length + 1)}
+                        onChange={(e) => onChange({ note: e.target.value }, "note")}
+                    />
+                    <div className="plan-place-foot">
+                        <span className="muted plan-booking-hint">{hotel ? "Shows on each day of the stay. The trip grows to fit its dates." : "Shows on its day."}</span>
+                        <button className="link danger" onClick={onRemove}>
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            )}
+        </li>
+    );
+};
+
+const BedIcon = () => (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M3 18V6M3 14h18v4M21 14v-2a3 3 0 0 0-3-3h-7v5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="7" cy="11" r="1.8" fill="currentColor" />
+    </svg>
+);
+
+const PlaneIcon = () => (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M21 15.5v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0v5l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-5z" fill="currentColor" />
+    </svg>
 );
 
 interface AddProps {

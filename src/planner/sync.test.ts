@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeServer } from "../../worker/src/fake";
 import { content, merge, type PlanContent } from "./merge";
-import { emptyPlan, needsExport, newDay, newPlace, type Plan } from "./plan";
+import { emptyPlan, needsExport, newBooking, newDay, newPlace, type Plan } from "./plan";
 import { Gone, join, readJoin, settle, share, shareLink, sync, unshare, viewLink, viewOnly } from "./sync";
 
 const base = (): PlanContent => {
@@ -209,5 +209,18 @@ describe("syncing shared plans", () => {
         const { link } = await viewLink(p, "");
         const seen = await join({ secret: link.slice(1) }, []);
         expect(viewOnly(seen) && seen.title).toBe("japan!");
+    });
+});
+
+describe("merging flights and hotels", () => {
+    it("keeps both sides' changes, and leaves plans without bookings alone", () => {
+        const base = content({ ...emptyPlan(1), bookings: [newBooking("hotel", { key: "h", name: "Kanra" })] });
+        const mine = { ...base, bookings: [{ ...base.bookings![0], note: "booking 123" }] };
+        const theirs = { ...base, bookings: [{ ...base.bookings![0], start: "2027-04-03", end: "2027-04-05" }, newBooking("flight", { key: "f", name: "JL 44" })] };
+        const m = merge(base, mine, theirs);
+        expect(m.bookings!.map((b) => [b.key, b.note, b.start])).toEqual([["h", "booking 123", "2027-04-03"], ["f", "", ""]]);
+        expect(merge(base, { ...base, bookings: [] }, theirs).bookings!.map((b) => b.key)).toEqual(["f"]);
+        const old = content(emptyPlan(1));
+        expect("bookings" in merge(old, old, old)).toBe(false);
     });
 });

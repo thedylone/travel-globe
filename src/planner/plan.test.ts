@@ -4,6 +4,9 @@ import { TripSchema } from "../../scripts/lib/schema.ts";
 import { draftFromFile, fromDraft } from "../studio/draft";
 import {
     addDays,
+    bookingsOn,
+    coverBookings,
+    newBooking,
     emptyPlan,
     endDate,
     fileName,
@@ -139,5 +142,19 @@ describe("trip planner", () => {
         };
         expect(describePlace(f)).toEqual({ name: "Fushimi Inari Taisha", address: "Kyoto, Kyoto Prefecture, Japan", lat: 34.96715, lng: 135.7727 });
         expect(describePlace({ ...f, properties: { name: "Kyoto", city: "Kyoto", country: "Japan" } })?.address).toBe("Japan");
+    });
+
+    it("puts a hotel on the days of its stay, and grows the trip to fit its dates", () => {
+        const hotel = newBooking("hotel", { name: "Kanra", start: "2026-12-21", end: "2026-12-24" });
+        const p = coverBookings(plan({ bookings: [hotel] }));
+        // Added at the end, so the days already planned keep their dates.
+        expect(p.start).toBe("2026-12-20");
+        expect(p.days).toHaveLength(5);
+        expect(p.days.map((_, i) => bookingsOn(p, i).night.length)).toEqual([0, 1, 1, 1, 0]);
+        expect(p.days.map((_, i) => bookingsOn(p, i).morning.length)).toEqual([0, 0, 1, 1, 1]);
+        const early = coverBookings({ ...p, bookings: [...p.bookings!, newBooking("flight", { start: "2026-12-18" })] });
+        expect(early.start).toBe("2026-12-18");
+        expect(early.days.slice(2)).toEqual(p.days);
+        expect(coverBookings(plan({ start: "", bookings: [hotel] })).start).toBe("2026-12-21");
     });
 });

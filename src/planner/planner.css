@@ -813,6 +813,69 @@ button.icon {
     outline: 3px solid var(--accent);
 }
 
+/* Flights and hotels: a card each in their section, and pinned on the days they cover. */
+.plan-booking .num,
+.plan-pinned .num {
+    background: var(--accent);
+}
+
+.plan-booking-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.plan-booking-grid label,
+.plan-booking .plan-place-body > label {
+    display: grid;
+    gap: 4px;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.plan-booking-hint {
+    margin-right: auto;
+    font-size: 13px;
+}
+
+button.plan-add-flight {
+    width: 100%;
+    margin-top: 8px;
+    border-style: dashed;
+    background: none;
+    justify-content: flex-start;
+    color: var(--text-muted);
+    font-weight: inherit;
+}
+
+.plan-pins {
+    margin: 8px 0;
+}
+
+.plan-pinned button {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: none;
+    text-align: left;
+    white-space: normal;
+}
+
+.plan-pinned .num {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: #fff;
+}
+
 /* The trip's name, in the bar that stays at the top while the list scrolls. */
 .plan-head-title {
     flex: 1;
