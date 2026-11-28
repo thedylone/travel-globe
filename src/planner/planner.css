@@ -830,3 +830,36 @@ button.plan-add-flight {
     border-radius: 50%;
     color: #fff;
 }
+
+/* The trip's name, in the bar that stays at the top while the list scrolls. */
+.plan-head-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font: 600 16px/1.2 var(--display);
+}
+
+.plan-day-route {
+    margin-left: auto;
+    font: 600 14px var(--body);
+}
+
+.plan-day-route + .plan-day-remove {
+    margin-left: 0;
+}
+
+.plan-place-maps {
+    display: flex;
+    gap: 16px;
+    font-size: 15px;
+}
+
+.plan-place-maps a,
+.plan-day-route {
+    color: var(--accent-text);
+    font-weight: 600;
+    text-decoration: none;
+}
