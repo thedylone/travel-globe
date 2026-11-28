@@ -14,6 +14,12 @@ export const newCode = () =>
         .replace(/\+/g, "-")
         .replace(/\//g, "_");
 
+/** A view-only code is 20 characters: it can read the plan but not change it. */
+export const isViewCode = (secret: string) => /^[A-Za-z0-9_-]{20}$/.test(secret);
+
+/** Opened from a view-only link, so this phone can look but not change it. */
+export const viewOnly = (p: Plan) => !!p.shared && isViewCode(p.shared.secret);
+
 /** Plans shared before codes have a 64-character secret, used with their id. */
 const isOldSecret = (secret: string) => /^[0-9a-f]{64}$/.test(secret);
 
@@ -30,7 +36,7 @@ export const readJoin = (hash: string): { id?: string; secret: string } | undefi
     const join = new URLSearchParams(hash.replace(/^#/, "")).get("join") ?? "";
     const old = /^([0-9a-f-]{36})\.([0-9a-f]{64})$/.exec(join);
     if (old) return { id: old[1], secret: old[2] };
-    return /^[A-Za-z0-9_-]{16}$/.test(join) ? { secret: join } : undefined;
+    return /^(?:[A-Za-z0-9_-]{16}|[A-Za-z0-9_-]{20})$/.test(join) ? { secret: join } : undefined;
 };
 
 interface Saved {
@@ -57,7 +63,7 @@ const address = (id: string | undefined, secret: string) => (isOldSecret(secret)
 const check = async (res: Response) => {
     if (res.status === 409) throw new Conflict(await res.json());
     if (res.status === 404) throw new Gone();
-    if (res.status === 403) throw new Error("this link doesn't open that plan");
+    if (res.status === 403) throw new Error((await res.json().catch(() => ({}))).error === "view only" ? "this is a view-only link" : "this link doesn't open that plan");
     if (!res.ok) throw new Error(`the sync server said ${res.status}`);
     return res.json();
 };
@@ -91,11 +97,27 @@ export const sendPicture = async (p: Plan, picture: Blob): Promise<void> => {
     );
 };
 
+/**
+ * The link that shows a shared plan without letting anyone change it. The server makes it the
+ * first time anyone asks, and gives the same one after; this phone keeps it in `shared.view`.
+ */
+export const viewLink = async (p: Plan, server = SYNC_URL): Promise<{ plan: Plan; link: string }> => {
+    if (!p.shared) throw new Error("the plan isn't shared");
+    if (viewOnly(p)) return { plan: p, link: shareLink(p, server) };
+    let view = p.shared.view;
+    if (!view) {
+        const res = await fetch(`${address(p.id, p.shared.secret)}/view`, { method: "POST", headers: { Authorization: `Bearer ${p.shared.secret}` } });
+        view = ((await check(res)) as { view: string }).view;
+        p = { ...p, shared: { ...p.shared, view } };
+    }
+    return { plan: p, link: `${server}/${view}` };
+};
+
 /** The plan as the server has it, as a plan on this phone, with `local`'s own bits kept. */
 const fromServer = (s: Saved, secret: string, local?: Plan, now = Date.now()): Plan => ({
     ...s.plan,
     exported: local?.exported,
-    shared: { secret, version: s.version, base: s.plan, synced: now, picture: local?.shared?.picture },
+    shared: { secret, version: s.version, base: s.plan, synced: now, picture: local?.shared?.picture, ...(local?.shared?.view ? { view: local.shared.view } : {}) },
 });
 
 /** Puts a plan on the server for the first time, with a new code. */
@@ -110,8 +132,10 @@ export const join = async (link: { id?: string; secret: string }, plans: Plan[])
     const saved = await request(link.id, secret);
     const local = plans.find((p) => p.id === saved.plan.id);
     if (!local?.shared) return fromServer(saved, secret, local);
-    // Already on this phone: keep what it changed since it last synced.
-    return sync({ ...local, shared: { ...local.shared, secret } });
+    // Already on this phone: keep what it changed since it last synced. A view-only link doesn't
+    // take away the edit link this phone has; an edit link replaces a view-only one.
+    const keepEdit = isViewCode(secret) && !viewOnly(local);
+    return sync({ ...local, shared: { ...local.shared, secret: keepEdit ? local.shared.secret : secret } });
 };
 
 /**
@@ -122,6 +146,11 @@ export const sync = async (p: Plan): Promise<Plan> => {
     const shared = p.shared;
     if (!shared) return p;
     const mine = content(p);
+    // A view-only phone only ever fetches: there's nothing of its own to send.
+    if (viewOnly(p)) {
+        const saved = await request(p.id, shared.secret);
+        return saved.version === shared.version && sameContent(mine, shared.base) ? { ...p, shared: { ...shared, synced: Date.now() } } : fromServer(saved, shared.secret, p);
+    }
     if (sameContent(mine, shared.base)) {
         const saved = await request(p.id, shared.secret);
         return saved.version === shared.version ? { ...p, shared: { ...shared, synced: Date.now() } } : fromServer(saved, shared.secret, p);

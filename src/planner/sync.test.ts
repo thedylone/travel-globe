@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fakeServer } from "../../worker/src/fake";
 import { content, merge, type PlanContent } from "./merge";
 import { emptyPlan, needsExport, newDay, newPlace, type Plan } from "./plan";
-import { Gone, join, readJoin, settle, share, shareLink, sync, unshare } from "./sync";
+import { Gone, join, readJoin, settle, share, shareLink, sync, unshare, viewLink, viewOnly } from "./sync";
 
 const base = (): PlanContent => {
     const p = emptyPlan(1000);
@@ -151,6 +151,47 @@ describe("syncing shared plans", () => {
         expect(readJoin(`#join=${old}`)).toEqual({ id: p.id, secret: "c".repeat(64) });
     });
 
+    it("gives a view-only link that sees the plan and its changes but can't change it", async () => {
+        const mine = await share(phone());
+        const { plan: withView, link } = await viewLink(mine, "");
+        expect(withView.shared!.view).toMatch(/^[A-Za-z0-9_-]{20}$/);
+        // The same link every time, from any phone with the edit link.
+        expect((await viewLink(withView, "")).link).toBe(link);
+        expect((await viewLink(await join({ secret: mine.shared!.secret }, []), "")).link).toBe(link);
+
+        const page = await (await fetch(link, { headers: {} })).text();
+        expect(page).toContain('content="japan"');
+        const target = readJoin(new URL(JSON.parse(/location\.replace\(([^)]+)\)/.exec(page)![1]) as string).hash)!;
+        const theirs = await join(target, []);
+        expect(viewOnly(theirs)).toBe(true);
+        expect(content(theirs)).toEqual(content(mine));
+        expect(shareLink(theirs, "")).toBe(link);
+        expect((await viewLink(theirs, "")).link).toBe(link);
+
+        // It follows the edits, never sends its own, and the server turns away any that slip through.
+        const edited = await sync({ ...withView, title: "japan 2026" });
+        const seen = await sync({ ...theirs, title: "mine now" });
+        expect(seen.title).toBe("japan 2026");
+        expect(seen.shared!.version).toBe(edited.shared!.version);
+        const put = await fetch("/shared", {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${theirs.shared!.secret}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ version: seen.shared!.version, plan: { ...content(seen), title: "hacked" } }),
+        });
+        expect(put.status).toBe(403);
+        expect((await fetch("/shared", { method: "DELETE", headers: { Authorization: `Bearer ${theirs.shared!.secret}` } })).status).toBe(403);
+        expect((await fetch("/shared/picture", { method: "PUT", headers: { Authorization: `Bearer ${theirs.shared!.secret}`, "Content-Type": "image/jpeg" }, body: new Uint8Array([1]) })).status).toBe(403);
+        expect((await sync(edited)).title).toBe("japan 2026");
+
+        // Opening the view-only link on a phone with the edit link keeps the edit link; the edit link upgrades a view-only phone.
+        expect(viewOnly(await join(target, [edited]))).toBe(false);
+        expect(viewOnly(await join({ secret: mine.shared!.secret }, [seen]))).toBe(false);
+
+        // Deleted for everyone: the view-only link stops too.
+        await unshare(edited);
+        await expect(sync(seen)).rejects.toBeInstanceOf(Gone);
+    });
+
     it("still syncs plans shared before codes", async () => {
         const secret = "d".repeat(64);
         const res = await fetch(`/plans/${base().id}`, {
@@ -164,5 +205,9 @@ describe("syncing shared plans", () => {
         const edited = await sync({ ...p, title: "japan!" });
         expect(edited.shared?.version).toBe(2);
         await expect(join({ id: base().id, secret: "e".repeat(64) }, [])).rejects.toThrow("doesn't open");
+        // They get view-only links too.
+        const { link } = await viewLink(p, "");
+        const seen = await join({ secret: link.slice(1) }, []);
+        expect(viewOnly(seen) && seen.title).toBe("japan!");
     });
 });
