@@ -206,6 +206,8 @@ body:has(.plan) {
 
 .plan-share-menu button {
     display: grid;
+    /* The page's buttons centre their content; these line up on the left like a list. */
+    justify-content: stretch;
     justify-items: start;
     min-height: 0;
     padding: 8px 10px;
@@ -841,7 +843,10 @@ button.icon {
 button.plan-add-flight {
     width: 100%;
     margin-top: 8px;
+    min-height: 45px;
+    padding: 8px 14px;
     border-style: dashed;
+    border-radius: 12px;
     background: none;
     justify-content: flex-start;
     color: var(--text-muted);
@@ -876,16 +881,6 @@ button.plan-add-flight {
     color: #fff;
 }
 
-/* The trip's name, in the bar that stays at the top while the list scrolls. */
-.plan-head-title {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: center;
-    font: 600 16px/1.2 var(--display);
-}
 
 .plan-day-route {
     margin-left: auto;

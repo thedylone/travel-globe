@@ -647,9 +647,6 @@ const PlanEditor = ({ plan, syncing, onEdit: edit, readOnly, canUndo, canRedo, o
                             </span>
                             )}
                         </span>
-                        <span className="plan-head-title" title={plan.title || undefined}>
-                            {plan.title || "Untitled trip"}
-                        </span>
                         <span className="plan-head-actions">
                             {onShare &&
                                 (readOnly ? (
