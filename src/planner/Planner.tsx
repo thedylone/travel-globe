@@ -29,6 +29,10 @@ import { pictureKey, tripPicture } from "./picture";
 import { emptyHistory, type History, record, redo, undo } from "./history";
 import { Gone, join, readJoin, sendPicture, settle, share, shareLink, sync, SYNC_URL, unshare } from "./sync";
 import { shareFontDataUrl } from "../lib/rasterize";
+import { applePlace, googlePlace, googleRoute, MAX_ROUTE, parseCoords } from "./maps";
+
+/** Apple Maps is offered too on iPhones, iPads and Macs. */
+const APPLE = /iPhone|iPad|Macintosh/.test(navigator.userAgent);
 
 const readHash = () => new URLSearchParams(location.hash.slice(1)).get("plan") ?? undefined;
 const go = (id?: string) => {
@@ -434,6 +438,17 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
     const [sheet, showSheet] = useSheet(root, mapWrap, side);
     const [sidebar, toggleSidebar] = useSidebar();
 
+    // The tab (and a phone's app switcher) shows the trip's name.
+    useEffect(() => {
+        const before = document.title;
+        return () => {
+            document.title = before;
+        };
+    }, []);
+    useEffect(() => {
+        document.title = `${plan.title || "Untitled trip"} · Trip planner`;
+    }, [plan.title]);
+
     // Ctrl/Cmd+Z undoes, Shift+Ctrl/Cmd+Z (or Ctrl+Y) redoes, everywhere but the search boxes,
     // which keep the browser's own undo for what's being typed in them.
     const keys = useRef({ onUndo, onRedo });
@@ -518,6 +533,12 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                     onMove={(by) => editList(day, (ps) => move(ps, i, i + by))}
                     onMoveTo={(to) => moveTo({ day, i }, to)}
                     onRemove={() => editList(day, (ps) => ps.filter((p) => p.key !== x.key))}
+                    onDuplicate={() => {
+                        // The copy goes just after it, and opens, ready to change.
+                        const copy = newPlace({ ...x, key: undefined });
+                        editList(day, (ps) => [...ps.slice(0, i + 1), copy, ...ps.slice(i + 1)]);
+                        setActive(copy.key);
+                    }}
                 />
             ))}
         </ol>
@@ -564,6 +585,9 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                                     <UndoIcon redo />
                                 </button>
                             </span>
+                        </span>
+                        <span className="plan-head-title" title={plan.title || undefined}>
+                            {plan.title || "Untitled trip"}
                         </span>
                         <span className="plan-head-actions">
                             {onShare && <button onClick={onShare}>{plan.shared ? "Share link" : "Share"}</button>}
@@ -649,6 +673,21 @@ const PlanEditor = ({ plan, syncing, onEdit, canUndo, canRedo, onUndo, onRedo, o
                                 {plan.start ? dayLabel(dayDate(plan, day)) : `Day ${day + 1}`}
                             </button>
                             <span className="muted">{d.places.length ? count(d.places.length, "place") : ""}</span>
+                            {googleRoute(d.places) && (
+                                <a
+                                    className="plan-day-route"
+                                    href={googleRoute(d.places)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title={
+                                        d.places.length > MAX_ROUTE
+                                            ? `Directions through the first ${MAX_ROUTE} places in Google Maps (it takes no more)`
+                                            : "Directions through this day's places in Google Maps"
+                                    }
+                                >
+                                    Directions
+                                </a>
+                            )}
                             {plan.days.length > 1 && (
                                 <button className="link plan-day-remove" aria-label="Remove this day" onClick={() => removeDay(day)}>
                                     ✕
@@ -710,9 +749,10 @@ interface PlaceProps {
     onMove: (by: number) => void;
     onMoveTo: (day: number) => void;
     onRemove: () => void;
+    onDuplicate: () => void;
 }
 
-const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onChange, onMove, onMoveTo, onRemove }: PlaceProps) => (
+const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onChange, onMove, onMoveTo, onRemove, onDuplicate }: PlaceProps) => (
     <li className={`plan-place${open ? " open" : ""}${place.side ? " side" : ""}`} data-place={place.key}>
         <button className="plan-place-head" onClick={onOpen}>
             <span className="num" style={color ? { background: color } : undefined}>
@@ -755,6 +795,16 @@ const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onCh
                         ↓
                     </button>
                 </div>
+                <div className="plan-place-maps">
+                    <a href={googlePlace(place)} target="_blank" rel="noopener noreferrer">
+                        Google Maps
+                    </a>
+                    {APPLE && (
+                        <a href={applePlace(place)} target="_blank" rel="noopener noreferrer">
+                            Apple Maps
+                        </a>
+                    )}
+                </div>
                 <div className="plan-place-foot">
                     {day >= 0 && (
                         <label className="check" title="Out from the stop before it and back again, e.g. a day trip">
@@ -762,6 +812,9 @@ const PlaceCard = ({ place, n, color, open, first, last, day, days, onOpen, onCh
                             Side trip
                         </label>
                     )}
+                    <button className="link" onClick={onDuplicate}>
+                        Duplicate
+                    </button>
                     <button className="link danger" onClick={onRemove}>
                         Remove
                     </button>
@@ -821,6 +874,8 @@ const AddPlace = ({ country, near, placeholder, onAdd }: AddProps) => {
         setFound([]);
         input.current?.blur();
     };
+    const coords = parseCoords(q);
+    const atCoords = () => coords && pick(newPlace({ place: coords.name || `${coords.lat}, ${coords.lng}`, lat: coords.lat, lng: coords.lng }));
     const typed = () => q.trim() && pick(newPlace({ place: q.trim() }));
 
     return (
@@ -837,7 +892,8 @@ const AddPlace = ({ country, near, placeholder, onAdd }: AddProps) => {
                     if (e.key === "Enter") {
                         e.preventDefault();
                         const [first] = found;
-                        if (first) pick(newPlace({ place: first.name, lat: first.lat, lng: first.lng, address: first.address }));
+                        if (coords) atCoords();
+                        else if (first) pick(newPlace({ place: first.name, lat: first.lat, lng: first.lng, address: first.address }));
                         else typed();
                     }
                     if (e.key === "Escape") setQ("");
@@ -845,6 +901,16 @@ const AddPlace = ({ country, near, placeholder, onAdd }: AddProps) => {
             />
             {q.trim().length >= 2 && (
                 <ul className="plan-results" ref={results}>
+                    {coords && (
+                        <li>
+                            <button onClick={atCoords}>
+                                <span className="name">{coords.name || "A place at these coordinates"}</span>
+                                <span className="muted">
+                                    {coords.lat}, {coords.lng}
+                                </span>
+                            </button>
+                        </li>
+                    )}
                     {found.map((f) => (
                         <li key={`${f.name}|${f.address}|${f.lat}`}>
                             <button onClick={() => pick(newPlace({ place: f.name, lat: f.lat, lng: f.lng, address: f.address }))}>
@@ -861,7 +927,7 @@ const AddPlace = ({ country, near, placeholder, onAdd }: AddProps) => {
                                     ? "Searching…"
                                     : state === "failed"
                                       ? "Couldn't search (offline?), so without a location for now"
-                                      : "without a location; the studio looks it up"}
+                                      : "without a location, or type its coordinates (e.g. 35.03, 135.72)"}
                             </span>
                         </button>
                     </li>
